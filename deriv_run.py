@@ -9,6 +9,8 @@ import tarfile
 import shutil
 import errno
 
+#TODO - Need to set it so that the stepsize is a relative stepsize, typically of order 1*10^-2 -> 1*10^-5
+
 class kcap_deriv:
     def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff):
         """
@@ -45,6 +47,8 @@ class kcap_deriv:
             raise Exception("vals_to_diff variable must be a list")
 
         self.parameter_list = params_to_fix + [param_to_vary]
+
+        self.param_header, self.param_name = param_to_vary.split("--")
 
     def check_mock_run_exists(self, mock_run):
         """
@@ -89,8 +93,8 @@ class kcap_deriv:
         """
         parameter_dict = {} # Dictionary of parameters to write to file
         for item in self.parameter_list:
-            param_header, param_name = item.split("--")
-            param_val = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+param_header+'/values.txt', parameter = param_name)
+            header, name = item.split("--")
+            param_val = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+header+'/values.txt', parameter = name)
             parameter_dict[item] = param_val
         print("Fetched parameters are: %s" % str(parameter_dict))
         self.param_dict = parameter_dict
@@ -117,10 +121,10 @@ class kcap_deriv:
 
         for param in self.params_to_fix:
             if param in self.param_dict:
-                param_header, param_name = param.split("--")
-                if param_name == "sigma_8":
-                    param_name = "sigma_8_input"
-                values_config[param_header][param_name] = str(self.param_dict[param])
+                header, name = param.split("--")
+                if name == "sigma_8":
+                    name = "sigma_8_input"
+                values_config[header][name] = str(self.param_dict[param])
             else:
                 raise Exception("Unknown parameter specified in params_to_fix")
         
@@ -137,10 +141,12 @@ class kcap_deriv:
             values_list_file.close()
 
             new_param_string = str(lower_two_step) + " " + str(middle_val) + " " + str(up_two_step)
-            param_header, param_name = self.param_to_vary.split("--")
-            if param_name == "sigma_8":
-                param_name = "sigma_8_input"
-            values_config[param_header][param_name] = new_param_string
+
+            if self.param_name == "sigma_8":
+                name = "sigma_8_input"
+            else:
+                name = self.param_name
+            values_config[self.param_header][name] = new_param_string
         else:
             raise Exception("Badly defined parameter to vary...")
 
@@ -170,10 +176,9 @@ class kcap_deriv:
         else:
             raise Exception("Sorry, you seem to be missing the derivatives, try running KCAP for the requested derivative steps first")
         
-        _, param_name = self.param_to_vary.split("--")
         step_list = ["-2dx", "-1dx", "+1dx", "+2dx"]
 
-        stepsize_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/deriv_stepsizes/'+param_name+"_stepsize.txt"
+        stepsize_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/deriv_stepsizes/'+self.param_name+"_stepsize.txt"
         if not os.path.exists(os.path.dirname(stepsize_file)):
             try:
                 os.makedirs(os.path.dirname(stepsize_file))
@@ -185,27 +190,28 @@ class kcap_deriv:
 
         for deriv_run in range(4):
             for param in self.vals_to_diff:
-                new_subdir_root = param + "_" + param_name
+                new_subdir_root = param + "_" + self.param_name
                 shutil.copytree(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(deriv_run)+'/'+param, 
                                 self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+new_subdir_root+step_list[deriv_run])
     
     def check_existing_derivs(self):
-        print("Checking if the corresponding derivatives already exist...")
-        _, param_name = self.param_to_vary.split("--")
+        print("Checking if the corresponding derivatives exist...")
         check_count = 0
         for deriv_vals in self.vals_to_diff:
-            if len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+param_name+'*/')) == 4:
-                print("All folders for %s numerical derivative values wrt to %s found." % (deriv_vals, param_name))
+            num_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'/*.txt')) - 2
+            num_found_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'_deriv/*.txt'))
+            if num_found_bins == num_bins:
+                print("Files for %s numerical derivative values wrt to %s found." % (deriv_vals, self.param_name))
                 check_count += 1
             else:
-                print("Missing derivatives for %s wrt to %s." % (deriv_vals, param_name))
+                print("Missing derivatives for %s wrt to %s." % (deriv_vals, self.param_name))
         
-        stepsize_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/deriv_stepsizes/'+param_name+"_stepsize.txt"
+        stepsize_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/deriv_stepsizes/'+self.param_name+"_stepsize.txt"
         if os.path.exists(os.path.dirname(stepsize_file)):
-            print("Stepsize file for deriv wrt to %s found" % param_name)
+            print("Stepsize file for deriv wrt to %s found" % self.param_name)
             check_count += 1
         else:
-            print("Missing stepsize file for %s derivatives" % param_name)
+            print("Missing stepsize file for %s derivatives" % self.param_name)
         
         if check_count == len(self.vals_to_diff) + 1:
             print("All wanted numerical derivative values found!")
@@ -221,13 +227,83 @@ class kcap_deriv:
             shutil.rmtree(self.kids_deriv_dir)
             os.makedirs(self.kids_deriv_dir)
             check_dir = os.listdir(self.kids_deriv_dir)
+            for deriv_vals in self.vals_to_diff:
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/')
+            
             if len(check_dir) == 0:
-                print("Derivatives directory succesfully cleaned up.")
+                if len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/*_'+self.param_name+'*dx')) == 0:
+                    print("Derivatives temprorary files succesfully cleaned up.")
             else:
                 raise Exception("Error during directory cleanup, please manually inspect!")
         else:
             print("Not all files found, exiting cleanup. Please manually inspect!")
             exit()
+
+    def first_deriv(self, step_size):
+        """
+        Calculates the first derivative using a 5 point stencil
+        """
+        for deriv_vals in self.vals_to_diff:
+            minus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/bin*.txt')
+            minus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/bin*.txt')
+            plus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/bin*.txt')
+            plus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/bin*.txt')
+
+            assert len(minus_2dx_files) == len(minus_1dx_files) == len(plus_2dx_files) == len(plus_1dx_files), "Some dx stepsize files missing."
+            
+            #fetch bin names
+            bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in minus_2dx_files]
+
+            minus_2dx_vals = np.array([])
+            for dx_file_name in minus_2dx_files:
+                dx_file = open(dx_file_name, "r")
+                values = np.array(dx_file.read().split('\n')[1:-1]) # the [1:-1] is to remove the first line that defines which bin and the -1 is to remove trailing empty line
+                minus_2dx_vals = np.append(minus_2dx_vals, values)
+            minus_2dx_vals = minus_2dx_vals.astype(np.float)
+            minus_2dx_vals = minus_2dx_vals.reshape((len(bin_names), -1))
+            
+            minus_1dx_vals = np.array([])
+            for dx_file_name in minus_1dx_files:
+                dx_file = open(dx_file_name, "r")
+                values = np.array(dx_file.read().split('\n')[1:-1])
+                minus_1dx_vals = np.append(minus_1dx_vals, values)
+            minus_1dx_vals = minus_1dx_vals.astype(np.float)
+            minus_1dx_vals = minus_1dx_vals.reshape((len(bin_names), -1))
+            
+            plus_2dx_vals = np.array([])
+            for dx_file_name in plus_2dx_files:
+                dx_file = open(dx_file_name, "r")
+                values = np.array(dx_file.read().split('\n')[1:-1])
+                plus_2dx_vals = np.append(plus_2dx_vals, values)
+            plus_2dx_vals = plus_2dx_vals.astype(np.float)
+            plus_2dx_vals = plus_2dx_vals.reshape((len(bin_names), -1))
+            
+            plus_1dx_vals = np.array([])
+            for dx_file_name in plus_1dx_files:
+                dx_file = open(dx_file_name, "r")
+                values = np.array(dx_file.read().split('\n')[1:-1])
+                plus_1dx_vals = np.append(plus_1dx_vals, values)
+            plus_1dx_vals = plus_1dx_vals.astype(np.float)
+            plus_1dx_vals = plus_1dx_vals.reshape((len(bin_names), -1))
+
+            print("All values needed for %s derivatives wrt to %s found, calculating and saving to file..." % (deriv_vals, self.param_name))
+
+            first_deriv_vals = (1/12*minus_2dx_vals - 2/3*minus_1dx_vals + 2/3*plus_1dx_vals -1/12*plus_2dx_vals)/step_size
+
+            deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+"_deriv/"
+            if not os.path.exists(os.path.dirname(deriv_dir_path)):
+                try:
+                    os.makedirs(os.path.dirname(deriv_dir_path))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
+            for i, bin_vals in enumerate(first_deriv_vals):
+                deriv_file = deriv_dir_path+bin_names[i]+".txt"
+                np.savetxt(deriv_file, bin_vals, newline="\n", header=bin_names[i])
+        print("Derivatives saved succesfully")
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size):
     kcap_run = kcap_deriv(mock_run = mock_run, 
@@ -244,6 +320,7 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
     step_size = kcap_run.write_deriv_values(step_size = step_size)
     kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
     kcap_run.copy_deriv_vals_to_mocks(step_size = step_size)
+    kcap_run.first_deriv(step_size = step_size)
     kcap_run.cleanup()
 
 if __name__ == "__main__":
