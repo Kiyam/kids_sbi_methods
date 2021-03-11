@@ -400,8 +400,8 @@ if __name__ == "__main__":
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus", "shear_xi_plus"],
     #                step_size = 0.02)
-    # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
-    # print(temp_vals)
-    covariance, inv_covariance = get_covariance(mock_run = 0)
-    print(len(covariance))
-    print(len(covariance[0]))
+    temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
+    print(temp_vals)
+    # covariance, inv_covariance = get_covariance(mock_run = 0)
+    # print(len(covariance))
+    # print(len(covariance[0]))
