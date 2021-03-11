@@ -127,13 +127,14 @@ class kcap_deriv:
                 values_config[header][name] = str(self.param_dict[param])
             else:
                 raise Exception("Unknown parameter specified in params_to_fix")
-        
+
         if self.param_to_vary in self.param_dict:
             middle_val = self.param_dict[self.param_to_vary]
-            lower_two_step = middle_val - 2*step_size
-            lower_one_step = middle_val - step_size
-            up_one_step = middle_val + step_size
-            up_two_step = middle_val + 2*step_size
+            abs_step_size = middle_val * step_size
+            lower_two_step = middle_val - 2*abs_step_size
+            lower_one_step = middle_val - abs_step_size
+            up_one_step = middle_val + abs_step_size
+            up_two_step = middle_val + 2*abs_step_size
             
             values_list_file = open(self.kids_deriv_values_list, "w")
             file_text = ["#"+self.param_to_vary+"\n", str(lower_two_step)+"\n"+str(lower_one_step)+"\n"+str(up_one_step)+"\n"+str(up_two_step)]
@@ -153,7 +154,7 @@ class kcap_deriv:
         with open(self.kids_deriv_values_file, 'w') as configfile:
             values_config.write(configfile)
         
-        return step_size
+        return step_size, abs_step_size
 
     def run_deriv_kcap(self, mpi_opt, threads):
         if mpi_opt == True:
@@ -166,7 +167,7 @@ class kcap_deriv:
         else: 
             raise Exception
 
-    def copy_deriv_vals_to_mocks(self, step_size):
+    def copy_deriv_vals_to_mocks(self, step_size, abs_step_size):
         if len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*/')) == 4:
             pass
         elif len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*.tgz')) == 4:
@@ -186,7 +187,7 @@ class kcap_deriv:
                 if exc.errno != errno.EEXIST:
                     raise
         with open(stepsize_file, "w") as f:
-            f.write(self.param_to_vary+"_stepsize="+str(step_size))
+            f.write(self.param_to_vary+"_relative_stepsize="+str(step_size) + "\n" + self.param_to_Vary+"_absolute_stepsize="+str(abs_step_size))
 
         for deriv_run in range(4):
             for param in self.vals_to_diff:
@@ -242,7 +243,7 @@ class kcap_deriv:
             print("Not all files found, exiting cleanup. Please manually inspect!")
             exit()
 
-    def first_deriv(self, step_size):
+    def first_deriv(self, abs_step_size):
         """
         Calculates the first derivative using a 5 point stencil
         """
@@ -291,7 +292,7 @@ class kcap_deriv:
 
             print("All values needed for %s derivatives wrt to %s found, calculating and saving to file..." % (deriv_vals, self.param_name))
 
-            first_deriv_vals = (1/12*minus_2dx_vals - 2/3*minus_1dx_vals + 2/3*plus_1dx_vals -1/12*plus_2dx_vals)/step_size
+            first_deriv_vals = (1/12*minus_2dx_vals - 2/3*minus_1dx_vals + 2/3*plus_1dx_vals -1/12*plus_2dx_vals)/abs_step_size
 
             deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+"_deriv/"
             if not os.path.exists(os.path.dirname(deriv_dir_path)):
@@ -305,6 +306,61 @@ class kcap_deriv:
                 np.savetxt(deriv_file, bin_vals, newline="\n", header=bin_names[i])
         print("Derivatives saved succesfully")
 
+class read_kcap(kcap_deriv):
+    def __init__(self, mock_run, vals_to_read):
+        self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
+        self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        self.mock_run = self.check_mock_run_exists(mock_run)
+        if isinstance(vals_to_read, list):
+            self.vals_to_read = vals_to_read
+        elif isinstance(vals_to_read, str):
+            self.vals_to_read = [vals_to_read]
+        else:
+            raise Exception("Badly defined values to read, needs to be of type string or list")
+
+    def read_vals(self):
+        vals_dict = {}
+        for vals in self.vals_to_read:
+            files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+vals+'/bin*.txt')
+            vals_array = np.array([])
+            for file_name in files_list:
+                temp_file_read = open(file_name, "r")
+                values = np.array(temp_file_read.read().split('\n')[1:-1]) # the [1:-1] is to remove the first line that defines which bin and the -1 is to remove trailing empty line
+                vals_array = np.append(vals_array, values)
+            vals_array = vals_array.astype(np.float)
+            vals_array = vals_array.reshape((len(files_list), -1))
+            vals_dict[vals] = vals_array
+        
+        return vals_dict
+
+class read_kcap_covariance_theory(kcap_deriv):
+    def __init__(self, mock_run):
+        self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
+        self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        self.mock_run = self.check_mock_run_exists(mock_run)
+
+    def read_covariance(self):
+        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/covariance.txt'
+        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/inv_covariance.txt'
+
+        covariance = np.loadtxt(covariance_file, skiprows = 1)
+
+        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
+
+        return covariance, inv_covariance
+    
+    def read_theory(self):
+        theory_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/theory.txt'
+        theory = np.loadtxt(theory_file, skiprows = 1)
+        return theory
+
+    def read_theory_data(self):
+        data_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/data.txt'
+        data = np.loadtxt(data_file, skiprows = 1)
+        return data
+
+
+
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size):
     kcap_run = kcap_deriv(mock_run = mock_run, 
                           param_to_vary = param_to_vary, 
@@ -317,11 +373,26 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         print("Not all values found, continuing script...")
         pass
     params = kcap_run.get_params()
-    step_size = kcap_run.write_deriv_values(step_size = step_size)
+    abs_step_size = kcap_run.write_deriv_values(step_size = step_size)
     kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
-    kcap_run.copy_deriv_vals_to_mocks(step_size = step_size)
-    kcap_run.first_deriv(step_size = step_size)
+    kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
+    kcap_run.first_deriv(abs_step_size = abs_step_size)
     kcap_run.cleanup()
+
+def get_values(mock_run, vals_to_read):
+    values_method = read_kcap(mock_run = mock_run, vals_to_read = vals_to_read)
+    values_read = values_method.read_vals()
+    return values_read
+
+def get_covariance(mock_run):
+    values_method = read_kcap_covariance_theory(mock_run = mock_run)
+    covariance, inv_covariance = values_method.read_covariance()
+    return covariance, inv_covariance
+
+def get_fiducial_means(mock_run):
+    values_method = read_kcap_covariance_theory(mock_run = mock_run)
+    fiducial_means = values_method.read_theory()
+    return fiducial_means
 
 if __name__ == "__main__":
     # run_kcap_deriv(mock_run = 0, 
@@ -329,9 +400,8 @@ if __name__ == "__main__":
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus", "shear_xi_plus"],
     #                step_size = 0.02)
-    
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--sigma_8", 
-                   params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus", "shear_xi_plus"],
-                   step_size = 0.02)
+    # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
+    # print(temp_vals)
+    covariance, inv_covariance = get_covariance(mock_run = 0)
+    print(len(covariance))
+    print(len(covariance[0]))
