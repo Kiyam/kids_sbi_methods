@@ -1,7 +1,7 @@
 import numpy as np
 from . import deriv_run
 
-#TODO Re read the logic ordering of the derivative vectors. I think there's a flattening required. The result should be a 2D matrix.
+#TODO Still need to figure out how to read the covariance matrix from kcap
 
 def compute_fisher(fiducial_run, inv_covariance, x, deriv_params):
     """

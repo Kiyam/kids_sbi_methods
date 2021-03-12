@@ -1,5 +1,8 @@
 from . import deriv_run
+from . import score_compression
 import numpy as np
+
+
 
 if __name__ == "__main__":
     covariance, inv_covariance = deriv_run.get_covariance(mock_run = 0)

@@ -187,7 +187,7 @@ class kcap_deriv:
                 if exc.errno != errno.EEXIST:
                     raise
         with open(stepsize_file, "w") as f:
-            f.write(self.param_to_vary+"_relative_stepsize="+str(step_size) + "\n" + self.param_to_Vary+"_absolute_stepsize="+str(abs_step_size))
+            f.write(self.param_to_vary+"_relative_stepsize="+str(step_size) + "\n" + self.param_to_vary+"_absolute_stepsize="+str(abs_step_size))
 
         for deriv_run in range(4):
             for param in self.vals_to_diff:
@@ -199,13 +199,20 @@ class kcap_deriv:
         print("Checking if the corresponding derivatives exist...")
         check_count = 0
         for deriv_vals in self.vals_to_diff:
-            num_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'/*.txt')) - 2
-            num_found_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'_deriv/*.txt'))
-            if num_found_bins == num_bins:
-                print("Files for %s numerical derivative values wrt to %s found." % (deriv_vals, self.param_name))
-                check_count += 1
-            else:
-                print("Missing derivatives for %s wrt to %s." % (deriv_vals, self.param_name))
+            if "covariance" in deriv_vals:
+                if os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'/covariance.txt'):
+                    print("Files for %s numerical derivative values wrt to %s found." % (deriv_vals, self.param_name))
+                    check_count += 1
+                else:
+                    print("Missing derivatives for %s wrt to %s." % (deriv_vals, self.param_name))
+            else:      
+                num_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'/bin*.txt'))
+                num_found_bins = len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'_deriv/bin*.txt'))
+                if num_found_bins == num_bins:
+                    print("Files for %s numerical derivative values wrt to %s found." % (deriv_vals, self.param_name))
+                    check_count += 1
+                else:
+                    print("Missing derivatives for %s wrt to %s." % (deriv_vals, self.param_name))
         
         stepsize_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/deriv_stepsizes/'+self.param_name+"_stepsize.txt"
         if os.path.exists(os.path.dirname(stepsize_file)):
@@ -248,47 +255,58 @@ class kcap_deriv:
         Calculates the first derivative using a 5 point stencil
         """
         for deriv_vals in self.vals_to_diff:
-            minus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/bin*.txt')
-            minus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/bin*.txt')
-            plus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/bin*.txt')
-            plus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/bin*.txt')
+            if "covariance" in deriv_vals:
+                minus_2dx_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/covariance.txt'
+                minus_1dx_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/covariance.txt'
+                plus_2dx_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/covariance.txt'
+                plus_1dx_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/covariance.txt'
 
-            assert len(minus_2dx_files) == len(minus_1dx_files) == len(plus_2dx_files) == len(plus_1dx_files), "Some dx stepsize files missing."
-            
-            #fetch bin names
-            bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in minus_2dx_files]
+                with open(minus_2dx_file, 'r') as flx: 
+                    minus_2dx_vals = np.loadtxt(flx)
+                with open(minus_1dx_file, 'r') as flx: 
+                    minus_1dx_vals = np.loadtxt(flx)
+                with open(plus_2dx_file, 'r') as flx: 
+                    plus_2dx_vals = np.loadtxt(flx)
+                with open(plus_1dx_file, 'r') as flx: 
+                    plus_1dx_vals = np.loadtxt(flx)
+            else:
+                minus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/bin*.txt')
+                minus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/bin*.txt')
+                plus_2dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/bin*.txt')
+                plus_1dx_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/bin*.txt')
 
-            minus_2dx_vals = np.array([])
-            for dx_file_name in minus_2dx_files:
-                dx_file = open(dx_file_name, "r")
-                values = np.array(dx_file.read().split('\n')[1:-1]) # the [1:-1] is to remove the first line that defines which bin and the -1 is to remove trailing empty line
-                minus_2dx_vals = np.append(minus_2dx_vals, values)
-            minus_2dx_vals = minus_2dx_vals.astype(np.float)
-            minus_2dx_vals = minus_2dx_vals.reshape((len(bin_names), -1))
-            
-            minus_1dx_vals = np.array([])
-            for dx_file_name in minus_1dx_files:
-                dx_file = open(dx_file_name, "r")
-                values = np.array(dx_file.read().split('\n')[1:-1])
-                minus_1dx_vals = np.append(minus_1dx_vals, values)
-            minus_1dx_vals = minus_1dx_vals.astype(np.float)
-            minus_1dx_vals = minus_1dx_vals.reshape((len(bin_names), -1))
-            
-            plus_2dx_vals = np.array([])
-            for dx_file_name in plus_2dx_files:
-                dx_file = open(dx_file_name, "r")
-                values = np.array(dx_file.read().split('\n')[1:-1])
-                plus_2dx_vals = np.append(plus_2dx_vals, values)
-            plus_2dx_vals = plus_2dx_vals.astype(np.float)
-            plus_2dx_vals = plus_2dx_vals.reshape((len(bin_names), -1))
-            
-            plus_1dx_vals = np.array([])
-            for dx_file_name in plus_1dx_files:
-                dx_file = open(dx_file_name, "r")
-                values = np.array(dx_file.read().split('\n')[1:-1])
-                plus_1dx_vals = np.append(plus_1dx_vals, values)
-            plus_1dx_vals = plus_1dx_vals.astype(np.float)
-            plus_1dx_vals = plus_1dx_vals.reshape((len(bin_names), -1))
+                assert len(minus_2dx_files) == len(minus_1dx_files) == len(plus_2dx_files) == len(plus_1dx_files), "Some dx stepsize files missing."
+                
+                #fetch bin names
+                bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in minus_2dx_files]
+
+                minus_2dx_vals = np.array([])
+                for dx_file_name in minus_2dx_files:
+                    with open(dx_file_name, 'r') as flx:
+                        values = np.loadtxt(flx)
+                    minus_2dx_vals = np.append(minus_2dx_vals, values)
+                minus_2dx_vals = minus_2dx_vals.reshape((len(bin_names), -1))
+                
+                minus_1dx_vals = np.array([])
+                for dx_file_name in minus_1dx_files:
+                    with open(dx_file_name, 'r') as flx:
+                        values = np.loadtxt(flx)
+                    minus_1dx_vals = np.append(minus_1dx_vals, values)
+                minus_1dx_vals = minus_1dx_vals.reshape((len(bin_names), -1))
+                
+                plus_2dx_vals = np.array([])
+                for dx_file_name in plus_2dx_files:
+                    with open(dx_file_name, 'r') as flx:
+                        values = np.loadtxt(flx)
+                    plus_2dx_vals = np.append(plus_2dx_vals, values)
+                plus_2dx_vals = plus_2dx_vals.reshape((len(bin_names), -1))
+                
+                plus_1dx_vals = np.array([])
+                for dx_file_name in plus_1dx_files:
+                    with open(dx_file_name, 'r') as flx:
+                        values = np.loadtxt(flx)
+                    plus_1dx_vals = np.append(plus_1dx_vals, values)
+                plus_1dx_vals = plus_1dx_vals.reshape((len(bin_names), -1))
 
             print("All values needed for %s derivatives wrt to %s found, calculating and saving to file..." % (deriv_vals, self.param_name))
 
@@ -301,9 +319,13 @@ class kcap_deriv:
                 except OSError as exc: # Guard against race condition
                     if exc.errno != errno.EEXIST:
                         raise
-            for i, bin_vals in enumerate(first_deriv_vals):
-                deriv_file = deriv_dir_path+bin_names[i]+".txt"
-                np.savetxt(deriv_file, bin_vals, newline="\n", header=bin_names[i])
+            if "covariance" in deriv_vals:
+                    deriv_file = deriv_dir_path+"covariance.txt"
+                    np.savetxt(deriv_file, first_deriv_vals, newline="\n", header="covariance")
+            else:
+                for i, vals in enumerate(first_deriv_vals):
+                    deriv_file = deriv_dir_path+bin_names[i]+".txt"
+                    np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
         print("Derivatives saved succesfully")
 
 class read_kcap(kcap_deriv):
@@ -373,7 +395,7 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         print("Not all values found, continuing script...")
         pass
     params = kcap_run.get_params()
-    abs_step_size = kcap_run.write_deriv_values(step_size = step_size)
+    step_size, abs_step_size = kcap_run.write_deriv_values(step_size = step_size)
     kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
     kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
     kcap_run.first_deriv(abs_step_size = abs_step_size)
@@ -398,10 +420,15 @@ if __name__ == "__main__":
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--omch2", 
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
-    #                vals_to_diff = ["shear_xi_minus", "shear_xi_plus"],
-    #                step_size = 0.02)
-    temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
-    print(temp_vals)
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01)
+    run_kcap_deriv(mock_run = 0, 
+                   param_to_vary = "cosmological_parameters--omch2", 
+                   params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
+                   vals_to_diff = ["theory_data_covariance"],
+                   step_size = 0.01)
+    # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
+    # print(temp_vals)
     # covariance, inv_covariance = get_covariance(mock_run = 0)
     # print(len(covariance))
     # print(len(covariance[0]))
