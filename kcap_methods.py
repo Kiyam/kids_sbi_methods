@@ -130,7 +130,7 @@ class kcap_deriv:
 
         if self.param_to_vary in self.param_dict:
             middle_val = self.param_dict[self.param_to_vary]
-            abs_step_size = middle_val * step_size
+            abs_step_size = np.absolute(middle_val) * step_size
             lower_two_step = middle_val - 2*abs_step_size
             lower_one_step = middle_val - abs_step_size
             up_one_step = middle_val + abs_step_size
@@ -328,8 +328,55 @@ class kcap_deriv:
                     np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
         print("Derivatives saved succesfully")
 
-class read_kcap(kcap_deriv):
-    def __init__(self, mock_run, vals_to_read):
+    def first_omega_m_deriv(self):
+        if "omch2" in self.param_to_vary:
+            h = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'h0')
+            for deriv_vals in self.vals_to_diff:
+                if "covariance" in deriv_vals:
+                    omch_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+'omch2_deriv/covariance.txt'
+                    with open(omch_deriv_file, 'r') as flx:
+                        omch_deriv = np.loadtxt(flx)
+                else:
+                    omch_deriv_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+'omch2_deriv/bin*.txt')
+                    bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in omch_deriv_files]
+                    omch_deriv = np.array([])
+                    for dx_file_name in omch_deriv_files:
+                        with open(dx_file_name, 'r') as flx:
+                            values = np.loadtxt(flx)
+                        omch_deriv = np.append(omch_deriv, values)
+                    omch_deriv = omch_deriv.reshape((len(bin_names), -1))
+
+                omega_m_deriv_vals = omch_deriv * (h**2)
+                
+                print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (deriv_vals))
+
+                deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+'omega_m_deriv/'
+                if not os.path.exists(os.path.dirname(deriv_dir_path)):
+                    try:
+                        os.makedirs(os.path.dirname(deriv_dir_path))
+                    except OSError as exc: # Guard against race condition
+                        if exc.errno != errno.EEXIST:
+                            raise
+
+                if "covariance" in deriv_vals:
+                    deriv_file = deriv_dir_path+"covariance.txt"
+                    np.savetxt(deriv_file, omega_m_deriv_vals, newline="\n", header="covariance")
+                else:
+                    for i, vals in enumerate(omega_m_deriv_vals):
+                        deriv_file = deriv_dir_path+bin_names[i]+".txt"
+                        np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
+            
+            print("Derivatives saved succesfully")
+        else:
+            print("Not running omega_m_deriv as omch2 has not been varied in this deriv run")
+            pass
+
+class read_kcap_values(kcap_deriv):
+    def __init__(self, mock_run, vals_to_read, bin_ordering = ['bin_1_1', 
+                                                               'bin_2_1', 'bin_2_2', 
+                                                               'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                                                               'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                                                               'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
         self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
         self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
         self.mock_run = self.check_mock_run_exists(mock_run)
@@ -339,49 +386,67 @@ class read_kcap(kcap_deriv):
             self.vals_to_read = [vals_to_read]
         else:
             raise Exception("Badly defined values to read, needs to be of type string or list")
+        self.bin_order = bin_ordering
 
     def read_vals(self):
         vals_dict = {}
-        for vals in self.vals_to_read:
-            files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+vals+'/bin*.txt')
+        for val_names in self.vals_to_read:
+            files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/bin*.txt')
+            bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in files_list]
+
+            bin_vals_dict = {}
+            for i, file_name in enumerate(files_list):
+                with open(file_name, 'r') as flx:
+                    values = np.loadtxt(flx)
+                bin_vals_dict[bin_names[i]] = values
+            
             vals_array = np.array([])
-            for file_name in files_list:
-                temp_file_read = open(file_name, "r")
-                values = np.array(temp_file_read.read().split('\n')[1:-1]) # the [1:-1] is to remove the first line that defines which bin and the -1 is to remove trailing empty line
-                vals_array = np.append(vals_array, values)
-            vals_array = vals_array.astype(np.float)
-            vals_array = vals_array.reshape((len(files_list), -1))
-            vals_dict[vals] = vals_array
+            for bin_name in self.bin_order:
+                vals_array = np.append(vals_array, bin_vals_dict[bin_name])
+            
+            vals_dict[val_names] = vals_array
         
         return vals_dict
+    
+    def read_thetas(self):
+        theta_dict = {}
+        for val_names in self.vals_to_read:
+            files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/theta_bin*.txt')
+            bin_names = [bin_name.split("/")[-1].replace(".txt", "").replace("theta_", "") for bin_name in files_list]
 
-class read_kcap_covariance_theory(kcap_deriv):
-    def __init__(self, mock_run):
+            bin_vals_dict = {}
+            for i, file_name in enumerate(files_list):
+                with open(file_name, 'r') as flx:
+                    values = np.loadtxt(flx)
+                vals_dict[bin_names[i]] = values
+            
+            vals_array = np.array([])
+            for bin_name in self.bin_order:
+                vals_array = np.append(vals_array, bin_vals_dict[bin_name])
+            
+            theta_dict[val_names] = vals_array
+
+        return theta_dict
+
+class read_kcap_covariance(kcap_deriv):
+    def __init__(self, mock_run, which_cov = "covariance"):
         self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
         self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
         self.mock_run = self.check_mock_run_exists(mock_run)
+        if which_cov == "covariance":
+            self.cov_folder = "theory_data_covariance"
+        else:
+            self.cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
     def read_covariance(self):
-        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/covariance.txt'
-        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/inv_covariance.txt'
-
+        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+self.cov_folder+'/covariance.txt'
         covariance = np.loadtxt(covariance_file, skiprows = 1)
-
-        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
-
-        return covariance, inv_covariance
+        return covariance
     
-    def read_theory(self):
-        theory_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/theory.txt'
-        theory = np.loadtxt(theory_file, skiprows = 1)
-        return theory
-
-    def read_theory_data(self):
-        data_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/data.txt'
-        data = np.loadtxt(data_file, skiprows = 1)
-        return data
-
-
+    def read_inv_covariance(self):
+        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+self.cov_folder+'/inv_covariance.txt'
+        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
+        return inv_covariance
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size):
     kcap_run = kcap_deriv(mock_run = mock_run, 
@@ -399,22 +464,28 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
     kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
     kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
     kcap_run.first_deriv(abs_step_size = abs_step_size)
+    kcap_run.first_omega_m_deriv()
     kcap_run.cleanup()
 
 def get_values(mock_run, vals_to_read):
-    values_method = read_kcap(mock_run = mock_run, vals_to_read = vals_to_read)
+    values_method = read_kcap_values(mock_run = mock_run, vals_to_read = vals_to_read)
     values_read = values_method.read_vals()
     return values_read
 
-def get_covariance(mock_run):
-    values_method = read_kcap_covariance_theory(mock_run = mock_run)
-    covariance, inv_covariance = values_method.read_covariance()
-    return covariance, inv_covariance
+def get_theta(mock_run, vals_to_read):
+    values_method = read_kcap_values(mock_run = mock_run, vals_to_read = vals_to_read)
+    values_read = values_method.read_thetas()
+    return values_read
 
-def get_fiducial_means(mock_run):
-    values_method = read_kcap_covariance_theory(mock_run = mock_run)
-    fiducial_means = values_method.read_theory()
-    return fiducial_means
+def get_covariance(mock_run):
+    values_method = read_kcap_covariance(mock_run = mock_run, which_cov = "covariance")
+    covariance = values_method.read_covariance()
+    return covariance
+
+def get_inv_covariance(mock_run):
+    values_method = read_kcap_covariance(mock_run = mock_run, which_cov = "covariance")
+    inv_covariance = values_method.read_inv_covariance()
+    return inv_covariance
 
 if __name__ == "__main__":
     # run_kcap_deriv(mock_run = 0, 
@@ -422,13 +493,19 @@ if __name__ == "__main__":
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
     #                step_size = 0.01)
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--omch2", 
-                   params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
-                   vals_to_diff = ["theory_data_covariance"],
-                   step_size = 0.01)
-    # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus", "shear_xi_minus"])
-    # print(temp_vals)
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--sigma_8", 
+    #                params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01)
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "intrinsic_alignment_parameters--a", 
+    #                params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01)
+    temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"])
+    print(len(temp_vals['shear_xi_plus_binned']))
+    print(len(temp_vals['shear_xi_minus_binned']))
     # covariance, inv_covariance = get_covariance(mock_run = 0)
     # print(len(covariance))
     # print(len(covariance[0]))
