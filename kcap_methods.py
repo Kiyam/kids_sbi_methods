@@ -63,9 +63,10 @@ class kcap_deriv:
 
         if os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run):
             pass
+            print("Untarred folder already found")
         elif os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz'):
             print("Need to untar files first...")
-            self.extract_tar(mock_run)
+            self.extract_tar(mock_run = mock_run)
             print("Succesfully untarred")
         else:
             raise Exception("Sorry, the requested mock run doesn't exist")
@@ -76,14 +77,16 @@ class kcap_deriv:
         Untars file
         """
         if option == "mocks":
-            kcap_tar = tarfile.open(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz')
-            kcap_tar.extractall(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run)
-            kcap_tar.close()
+            with tarfile.open(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz', 'r:gz') as kcap_tar:
+                kcap_tar.extractall(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run)
+                #
+                kcap_tar.close()
+                print("Mock run extracted is: %s" % mock_run)
         elif option == "derivs":
             for step in range(4):
-                kcap_tar = tarfile.open(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(step)+'.tgz')
-                kcap_tar.extractall(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(step))
-                kcap_tar.close()
+                with tarfile.open(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(step)+'.tgz') as kcap_tar:
+                    kcap_tar.extractall(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(step))
+                    kcap_tar.close()
         else:
             raise Exception("Ill defined option passed as argument to extract_tar method")      
 
@@ -455,17 +458,17 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
                           vals_to_diff = vals_to_diff)
     check = kcap_run.check_existing_derivs()
     if check is True:
-        exit()
+        print("All files found for these parameters, skipping this particular deriv run")
     else:
         print("Not all values found, continuing script...")
         pass
-    params = kcap_run.get_params()
-    step_size, abs_step_size = kcap_run.write_deriv_values(step_size = step_size)
-    kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
-    kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
-    kcap_run.first_deriv(abs_step_size = abs_step_size)
-    kcap_run.first_omega_m_deriv()
-    kcap_run.cleanup()
+        params = kcap_run.get_params()
+        step_size, abs_step_size = kcap_run.write_deriv_values(step_size = step_size)
+        kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
+        kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
+        kcap_run.first_deriv(abs_step_size = abs_step_size)
+        kcap_run.first_omega_m_deriv()
+        kcap_run.cleanup()
 
 def get_values(mock_run, vals_to_read):
     values_method = read_kcap_values(mock_run = mock_run, vals_to_read = vals_to_read)
@@ -488,11 +491,11 @@ def get_inv_covariance(mock_run):
     return inv_covariance
 
 if __name__ == "__main__":
-    # run_kcap_deriv(mock_run = 0, 
-    #                param_to_vary = "cosmological_parameters--omch2", 
-    #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-    #                step_size = 0.01)
+    run_kcap_deriv(mock_run = 5, 
+                   param_to_vary = "cosmological_parameters--omch2", 
+                   params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
+                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+                   step_size = 0.01)
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--sigma_8", 
     #                params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
@@ -503,9 +506,10 @@ if __name__ == "__main__":
     #                params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
     #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
     #                step_size = 0.01)
-    temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"])
-    print(len(temp_vals['shear_xi_plus_binned']))
-    print(len(temp_vals['shear_xi_minus_binned']))
+    # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"])
+    # print(len(temp_vals['shear_xi_plus_binned']))
+    # print(len(temp_vals['shear_xi_minus_binned']))
     # covariance, inv_covariance = get_covariance(mock_run = 0)
     # print(len(covariance))
     # print(len(covariance[0]))
+    pass
