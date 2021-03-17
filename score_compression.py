@@ -17,7 +17,7 @@ def compute_fisher(mock_run, fiducial_run, deriv_params, data_params):
         deriv_vector_dict = kcap_methods.get_values(mock_run = fiducial_run, vals_to_read = deriv_vals_to_get)
         deriv_vector = np.array([])
         for data_param in data_params:
-            deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_param])
+            deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_param+'_'+deriv_param+'_deriv'])
         
         deriv_matrix[i] += deriv_vector
 
@@ -51,7 +51,7 @@ def score_compress(mock_run, fiducial_run, deriv_params, data_params, linear = T
         deriv_vector_dict = kcap_methods.get_values(mock_run = fiducial_run, vals_to_read = deriv_vals_to_get)
         deriv_vector = np.array([])
         for data_param in data_params:
-            deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_param])
+            deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_param+'_'+deriv_param+'_deriv'])
         
         deriv_matrix[i] += deriv_vector
     

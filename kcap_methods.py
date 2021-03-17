@@ -8,24 +8,40 @@ import glob
 import tarfile
 import shutil
 import errno
+from environs import Env
 
 #TODO - Need to set it so that the stepsize is a relative stepsize, typically of order 1*10^-2 -> 1*10^-5
 
 class kcap_deriv:
     def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff):
         """
-        Gets variable from shell
+        Gets variable from .env file
         """
-        self.cosmosis_src_dir = os.environ['COSMOSIS_SRC_DIR']
-        self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        self.kids_deriv_dir = os.environ['KIDS_DERIV_DIR']
-        self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
-        self.kids_deriv_root_name = os.environ['KIDS_DERIV_ROOT_NAME']
-        self.kids_pipeline_ini_file = os.environ['KIDS_PIPELINE_INI_FILE']
-        self.kids_pipeline_values_file = os.environ['KIDS_PIPELINE_VALUES_FILE']
-        self.kids_deriv_ini_file = os.environ['KIDS_DERIV_INI_FILE']
-        self.kids_deriv_values_file = os.environ['KIDS_DERIV_VALUES_FILE']
-        self.kids_deriv_values_list = os.environ['KIDS_PIPELINE_DERIV_VALUES_LIST']
+        # self.cosmosis_src_dir = os.environ['COSMOSIS_SRC_DIR']
+        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
+        # self.kids_deriv_dir = os.environ['KIDS_DERIV_DIR']
+        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        # self.kids_deriv_root_name = os.environ['KIDS_DERIV_ROOT_NAME']
+        # self.kids_pipeline_ini_file = os.environ['KIDS_PIPELINE_INI_FILE']
+        # self.kids_pipeline_values_file = os.environ['KIDS_PIPELINE_VALUES_FILE']
+        # self.kids_deriv_ini_file = os.environ['KIDS_DERIV_INI_FILE']
+        # self.kids_deriv_values_file = os.environ['KIDS_DERIV_VALUES_FILE']
+        # self.kids_deriv_values_list = os.environ['KIDS_PIPELINE_DERIV_VALUES_LIST']
+        # self.mock_run = self.check_mock_run_exists(mock_run)
+
+        env = Env()
+        env.read_env()
+
+        self.cosmosis_src_dir = env.str('cosmosis_sr_dir')
+        self.kids_mocks_dir = env.str('kids_mocks_dir')
+        self.kids_deriv_dir = env.str('kids_deriv_dir')
+        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
+        self.kids_deriv_root_name = env.str('kids_deriv_root_name')
+        self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
+        self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
+        self.kids_deriv_ini_file = env.str('kids_deriv_ini_file')
+        self.kids_deriv_values_file = env.str('kids_deriv_values_file')
+        self.kids_deriv_values_list = env.str('kids_pipeline_deriv_values_list')
         self.mock_run = self.check_mock_run_exists(mock_run)
         
         if param_to_vary in params_to_fix:
@@ -380,8 +396,13 @@ class read_kcap_values(kcap_deriv):
                                                                'bin_3_1', 'bin_3_2', 'bin_3_3', 
                                                                'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
                                                                'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
-        self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
+        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+
+        env = Env()
+        env.read_env()
+        self.kids_mocks_dir = env.str('kids_mocks_dir')
+        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
         self.mock_run = self.check_mock_run_exists(mock_run)
         if isinstance(vals_to_read, list):
             self.vals_to_read = vals_to_read
@@ -433,8 +454,13 @@ class read_kcap_values(kcap_deriv):
 
 class read_kcap_covariance(kcap_deriv):
     def __init__(self, mock_run, which_cov = "covariance"):
-        self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
+        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
+        env = Env()
+        env.read_env()
+
+        self.kids_mocks_dir = env.str('kids_mocks_dir')
+        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
         self.mock_run = self.check_mock_run_exists(mock_run)
         if which_cov == "covariance":
             self.cov_folder = "theory_data_covariance"
