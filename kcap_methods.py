@@ -13,35 +13,72 @@ from environs import Env
 #TODO - Need to set it so that the stepsize is a relative stepsize, typically of order 1*10^-2 -> 1*10^-5
 
 class kcap_deriv:
-    def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff):
+    def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff, 
+                       mocks_dir = None, mocks_name = None, mocks_ini_file = None, mocks_values_file = None,
+                       deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None):
         """
         Gets variable from .env file
         """
-        # self.cosmosis_src_dir = os.environ['COSMOSIS_SRC_DIR']
-        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        # self.kids_deriv_dir = os.environ['KIDS_DERIV_DIR']
-        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
-        # self.kids_deriv_root_name = os.environ['KIDS_DERIV_ROOT_NAME']
-        # self.kids_pipeline_ini_file = os.environ['KIDS_PIPELINE_INI_FILE']
-        # self.kids_pipeline_values_file = os.environ['KIDS_PIPELINE_VALUES_FILE']
-        # self.kids_deriv_ini_file = os.environ['KIDS_DERIV_INI_FILE']
-        # self.kids_deriv_values_file = os.environ['KIDS_DERIV_VALUES_FILE']
-        # self.kids_deriv_values_list = os.environ['KIDS_PIPELINE_DERIV_VALUES_LIST']
-        # self.mock_run = self.check_mock_run_exists(mock_run)
 
         env = Env()
         env.read_env()
 
-        self.cosmosis_src_dir = env.str('cosmosis_sr_dir')
-        self.kids_mocks_dir = env.str('kids_mocks_dir')
-        self.kids_deriv_dir = env.str('kids_deriv_dir')
-        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
-        self.kids_deriv_root_name = env.str('kids_deriv_root_name')
-        self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
-        self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
-        self.kids_deriv_ini_file = env.str('kids_deriv_ini_file')
-        self.kids_deriv_values_file = env.str('kids_deriv_values_file')
-        self.kids_deriv_values_list = env.str('kids_pipeline_deriv_values_list')
+        self.cosmosis_src_dir = env.str('cosmosis_src_dir')
+
+        # mocks_dir settings
+        if mocks_dir == None:
+            self.kids_mocks_dir = env.str('kids_mocks_dir')
+        else:
+            self.kids_mocks_dir = mocks_dir
+
+        # mocks_name settings
+        if mocks_name == None:
+            self.kids_mocks_root_name = env.str('kids_mocks_root_name')
+        else:
+            self.kids_mocks_root_name = mocks_name
+        
+        # mocks ini file settings
+        if mocks_ini_file == None:
+            self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
+        else:
+            self.kids_pipeline_ini_file = mocks_ini_file
+
+        # mocks values file settings
+        if mocks_values_file == None:
+            self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
+        else:
+            self.kids_pipeline_values_file = mocks_values_file
+
+        # deriv_dir settings
+        if deriv_dir == None:
+            self.kids_deriv_dir = env.str('kids_deriv_dir')
+        else:
+            self.kids_deriv_dir = deriv_dir
+        
+        # deriv output filename settings
+        if deriv_name == None:
+            self.kids_deriv_root_name = env.str('kids_deriv_root_name')
+        else:
+            self.kids_deriv_root_name = deriv_name
+        
+        # deriv ini file settings
+        if deriv_ini_file == None:
+            self.kids_deriv_ini_file = env.str('kids_deriv_ini_file')
+        else:
+            self.kids_deriv_ini_file = deriv_ini_file
+
+        # deriv values file settings
+        if deriv_values_file == None:
+            self.kids_deriv_values_file = env.str('kids_deriv_values_file')
+        else:
+            self.kids_deriv_values_file = deriv_values_file
+        
+        # deriv values list file settings
+        if deriv_values_list_file == None:
+            self.kids_deriv_values_list = env.str('kids_pipeline_deriv_values_list')
+        else:
+            self.kids_deriv_values_list = deriv_values_list_file
+        
         self.mock_run = self.check_mock_run_exists(mock_run)
         
         if param_to_vary in params_to_fix:
@@ -79,7 +116,6 @@ class kcap_deriv:
 
         if os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run):
             pass
-            print("Untarred folder already found")
         elif os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz'):
             print("Need to untar files first...")
             self.extract_tar(mock_run = mock_run)
@@ -105,6 +141,52 @@ class kcap_deriv:
                     kcap_tar.close()
         else:
             raise Exception("Ill defined option passed as argument to extract_tar method")      
+
+    def check_ini_settings(self, ini_file_to_check):
+        """
+        Modifies the deriv_values_list.ini file
+        """
+        values_config = cfg.ConfigParser()
+
+        if ini_file_to_check == 'pipeline_file':
+            to_change = 0
+            values_config.read(self.kids_pipeline_ini_file)
+            if values_config['DEFAULT']['RESULTS_PATH'] == self.kids_mocks_dir:
+                pass
+            else:
+                values_config['DEFAULT']['RESULTS_PATH'] = self.kids_mocks_dir
+                to_change += 1
+                
+            if values_config['DEFAULT']['RESULTS_NAME'] == self.kids_mocks_root_name:
+                pass
+            else:
+                values_config['DEFAULT']['RESULTS_NAME'] = self.kids_mocks_root_name
+                to_change += 1
+
+            if to_change > 0:
+                print("Setting a few pipeline ini file values...")
+                with open(self.kids_deriv_values_file, 'w') as configfile:
+                    values_config.write(configfile)
+        
+        elif ini_file_to_check == 'deriv_file':
+            to_change = 0
+            values_config.read(self.kids_deriv_ini_file)
+            if values_config['DEFAULT']['RESULTS_PATH'] == self.kids_deriv_dir:
+                pass
+            else:
+                values_config['DEFAULT']['RESULTS_PATH'] = self.kids_deriv_dir
+                to_change += 1
+                
+            if values_config['DEFAULT']['RESULTS_NAME'] == self.kids_deriv_root_name:
+                pass
+            else:
+                values_config['DEFAULT']['RESULTS_NAME'] = self.kids_deriv_root_name
+                to_change += 1
+
+            if to_change > 0:
+                print("Setting a few deriv pipeline ini file values...")
+                with open(self.kids_deriv_ini_file, 'w') as configfile:
+                    values_config.write(configfile)
 
     def get_params(self):
         """
@@ -176,6 +258,7 @@ class kcap_deriv:
         return step_size, abs_step_size
 
     def run_deriv_kcap(self, mpi_opt, threads):
+        self.check_ini_settings(self, ini_file_to_check = 'deriv_file')
         if mpi_opt == True:
             if isinstance(threads, int):
                 subprocess.run(["mpirun", "-n" , str(threads), "cosmosis", "--mpi", self.kids_deriv_ini_file])
@@ -246,7 +329,7 @@ class kcap_deriv:
         else:
             return False
 
-    def cleanup(self):
+    def cleanup_deriv_folder(self):
         print("Checking all files exist as expected and cleaning up...")
         files_found = self.check_existing_derivs()
         if files_found is True:
@@ -254,11 +337,6 @@ class kcap_deriv:
             shutil.rmtree(self.kids_deriv_dir)
             os.makedirs(self.kids_deriv_dir)
             check_dir = os.listdir(self.kids_deriv_dir)
-            for deriv_vals in self.vals_to_diff:
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/')
             
             if len(check_dir) == 0:
                 if len(glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/*_'+self.param_name+'*dx')) == 0:
@@ -268,6 +346,13 @@ class kcap_deriv:
         else:
             print("Not all files found, exiting cleanup. Please manually inspect!")
             exit()
+    
+    def cleanup_dx(self):
+        for deriv_vals in self.vals_to_diff:
+            shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-2dx/')
+            shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'-1dx/')
+            shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+2dx/')
+            shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+'+1dx/')
 
     def first_deriv(self, abs_step_size):
         """
@@ -329,7 +414,7 @@ class kcap_deriv:
 
             print("All values needed for %s derivatives wrt to %s found, calculating and saving to file..." % (deriv_vals, self.param_name))
 
-            first_deriv_vals = (1/12*minus_2dx_vals - 2/3*minus_1dx_vals + 2/3*plus_1dx_vals -1/12*plus_2dx_vals)/abs_step_size
+            first_deriv_vals = ((1/12)*minus_2dx_vals - (2/3)*minus_1dx_vals + (2/3)*plus_1dx_vals - (1/12)*plus_2dx_vals)/abs_step_size
 
             deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+"_deriv/"
             if not os.path.exists(os.path.dirname(deriv_dir_path)):
@@ -391,30 +476,29 @@ class kcap_deriv:
             pass
 
 class read_kcap_values(kcap_deriv):
-    def __init__(self, mock_run, vals_to_read, bin_ordering = ['bin_1_1', 
+    def __init__(self, mock_run, bin_ordering = ['bin_1_1', 
                                                                'bin_2_1', 'bin_2_2', 
                                                                'bin_3_1', 'bin_3_2', 'bin_3_3', 
                                                                'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
                                                                'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
-        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
 
         env = Env()
         env.read_env()
         self.kids_mocks_dir = env.str('kids_mocks_dir')
         self.kids_mocks_root_name = env.str('kids_mocks_root_name')
         self.mock_run = self.check_mock_run_exists(mock_run)
-        if isinstance(vals_to_read, list):
-            self.vals_to_read = vals_to_read
-        elif isinstance(vals_to_read, str):
-            self.vals_to_read = [vals_to_read]
-        else:
-            raise Exception("Badly defined values to read, needs to be of type string or list")
         self.bin_order = bin_ordering
 
-    def read_vals(self):
+    def read_vals(self, vals_to_read):
+        if isinstance(vals_to_read, list):
+            vals_to_read = vals_to_read
+        elif isinstance(vals_to_read, str):
+            vals_to_read = [vals_to_read]
+        else:
+            raise Exception("Badly defined values to read, needs to be of type string or list")
+
         vals_dict = {}
-        for val_names in self.vals_to_read:
+        for val_names in vals_to_read:
             files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/bin*.txt')
             bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in files_list]
 
@@ -432,9 +516,16 @@ class read_kcap_values(kcap_deriv):
         
         return vals_dict
     
-    def read_thetas(self):
+    def read_thetas(self, vals_to_read):
+        if isinstance(vals_to_read, list):
+            vals_to_read = vals_to_read
+        elif isinstance(vals_to_read, str):
+            vals_to_read = [vals_to_read]
+        else:
+            raise Exception("Badly defined values to read, needs to be of type string or list")
+
         theta_dict = {}
-        for val_names in self.vals_to_read:
+        for val_names in vals_to_read:
             files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/theta_bin*.txt')
             bin_names = [bin_name.split("/")[-1].replace(".txt", "").replace("theta_", "") for bin_name in files_list]
 
@@ -442,7 +533,7 @@ class read_kcap_values(kcap_deriv):
             for i, file_name in enumerate(files_list):
                 with open(file_name, 'r') as flx:
                     values = np.loadtxt(flx)
-                vals_dict[bin_names[i]] = values
+                bin_vals_dict[bin_names[i]] = values
             
             vals_array = np.array([])
             for bin_name in self.bin_order:
@@ -451,29 +542,37 @@ class read_kcap_values(kcap_deriv):
             theta_dict[val_names] = vals_array
 
         return theta_dict
+    
+    def get_params(self, parameter_list):
+        """
+        Gets parameters from the specified mock run
+        """
+        parameter_dict = {} # Dictionary of parameters to write to file
+        for item in parameter_list:
+            header, name = item.split("--")
+            param_val = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+header+'/values.txt', parameter = name)
+            parameter_dict[item] = param_val
+        print("Fetched parameters are: %s" % str(parameter_dict))
+        param_dict = parameter_dict
+        return(parameter_dict)
 
-class read_kcap_covariance(kcap_deriv):
-    def __init__(self, mock_run, which_cov = "covariance"):
-        # self.kids_mocks_dir = os.environ['KIDS_MOCKS_DIR']
-        # self.kids_mocks_root_name = os.environ['KIDS_MOCKS_ROOT_NAME']
-        env = Env()
-        env.read_env()
-
-        self.kids_mocks_dir = env.str('kids_mocks_dir')
-        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
-        self.mock_run = self.check_mock_run_exists(mock_run)
+    def read_covariance(self, which_cov = "covariance"):
         if which_cov == "covariance":
-            self.cov_folder = "theory_data_covariance"
+            cov_folder = "theory_data_covariance"
         else:
-            self.cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
+            cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
-    def read_covariance(self):
-        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+self.cov_folder+'/covariance.txt'
+        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/covariance.txt'
         covariance = np.loadtxt(covariance_file, skiprows = 1)
         return covariance
     
-    def read_inv_covariance(self):
-        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+self.cov_folder+'/inv_covariance.txt'
+    def read_inv_covariance(self, which_cov = "covariance"):
+        if which_cov == "covariance":
+            cov_folder = "theory_data_covariance"
+        else:
+            cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
+
+        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/inv_covariance.txt'
         inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
         return inv_covariance
 
@@ -494,48 +593,53 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
         kcap_run.first_deriv(abs_step_size = abs_step_size)
         kcap_run.first_omega_m_deriv()
-        kcap_run.cleanup()
+        # kcap_run.cleanup_deriv_folder()
+        # kcap_run.cleanup_dx()
 
 def get_values(mock_run, vals_to_read):
-    values_method = read_kcap_values(mock_run = mock_run, vals_to_read = vals_to_read)
-    values_read = values_method.read_vals()
+    values_method = read_kcap_values(mock_run = mock_run)
+    values_read = values_method.read_vals(vals_to_read = vals_to_read)
     return values_read
 
 def get_theta(mock_run, vals_to_read):
-    values_method = read_kcap_values(mock_run = mock_run, vals_to_read = vals_to_read)
-    values_read = values_method.read_thetas()
+    values_method = read_kcap_values(mock_run = mock_run)
+    values_read = values_method.read_thetas(vals_to_read = vals_to_read)
     return values_read
 
-def get_covariance(mock_run):
-    values_method = read_kcap_covariance(mock_run = mock_run, which_cov = "covariance")
-    covariance = values_method.read_covariance()
+def get_params(mock_run, vals_to_read):
+    values_method = read_kcap_values(mock_run = mock_run)
+    values_read = values_method.get_params(parameter_list = vals_to_read)
+    return values_read
+
+def get_covariance(mock_run, which_cov = "covariance"):
+    values_method = read_kcap_values(mock_run = mock_run)
+    covariance = values_method.read_covariance(which_cov = which_cov)
     return covariance
 
-def get_inv_covariance(mock_run):
-    values_method = read_kcap_covariance(mock_run = mock_run, which_cov = "covariance")
-    inv_covariance = values_method.read_inv_covariance()
+def get_inv_covariance(mock_run, which_cov = "covariance"):
+    values_method = read_kcap_values(mock_run = mock_run)
+    inv_covariance = values_method.read_inv_covariance(which_cov = which_cov)
     return inv_covariance
 
 if __name__ == "__main__":
-    run_kcap_deriv(mock_run = 5, 
-                   param_to_vary = "cosmological_parameters--omch2", 
-                   params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-                   step_size = 0.01)
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--omch2", 
+    #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01)
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--sigma_8", 
     #                params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
     #                step_size = 0.01)
-    # run_kcap_deriv(mock_run = 0, 
-    #                param_to_vary = "intrinsic_alignment_parameters--a", 
-    #                params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-    #                step_size = 0.01)
+    run_kcap_deriv(mock_run = 0, 
+                   param_to_vary = "intrinsic_alignment_parameters--a", 
+                   params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
+                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+                   step_size = 0.5)
     # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"])
     # print(len(temp_vals['shear_xi_plus_binned']))
     # print(len(temp_vals['shear_xi_minus_binned']))
     # covariance, inv_covariance = get_covariance(mock_run = 0)
     # print(len(covariance))
     # print(len(covariance[0]))
-    pass
