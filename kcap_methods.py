@@ -258,7 +258,7 @@ class kcap_deriv:
         return step_size, abs_step_size
 
     def run_deriv_kcap(self, mpi_opt, threads):
-        self.check_ini_settings(self, ini_file_to_check = 'deriv_file')
+        self.check_ini_settings(ini_file_to_check = 'deriv_file')
         if mpi_opt == True:
             if isinstance(threads, int):
                 subprocess.run(["mpirun", "-n" , str(threads), "cosmosis", "--mpi", self.kids_deriv_ini_file])
@@ -576,11 +576,13 @@ class read_kcap_values(kcap_deriv):
         inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
         return inv_covariance
 
-def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size):
+def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, mocks_dir = None, mocks_name = None):
     kcap_run = kcap_deriv(mock_run = mock_run, 
                           param_to_vary = param_to_vary, 
                           params_to_fix = params_to_fix,
-                          vals_to_diff = vals_to_diff)
+                          vals_to_diff = vals_to_diff,
+                          mocks_dir = mocks_dir, 
+                          mocks_name = mocks_name)
     check = kcap_run.check_existing_derivs()
     if check is True:
         print("All files found for these parameters, skipping this particular deriv run")
@@ -593,8 +595,8 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
         kcap_run.first_deriv(abs_step_size = abs_step_size)
         kcap_run.first_omega_m_deriv()
-        # kcap_run.cleanup_deriv_folder()
-        # kcap_run.cleanup_dx()
+        kcap_run.cleanup_deriv_folder()
+        kcap_run.cleanup_dx()
 
 def get_values(mock_run, vals_to_read):
     values_method = read_kcap_values(mock_run = mock_run)
@@ -627,16 +629,13 @@ if __name__ == "__main__":
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
     #                step_size = 0.01)
-    # run_kcap_deriv(mock_run = 0, 
-    #                param_to_vary = "cosmological_parameters--sigma_8", 
-    #                params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-    #                step_size = 0.01)
     run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "intrinsic_alignment_parameters--a", 
-                   params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
+                   param_to_vary = "cosmological_parameters--sigma_8", 
+                   params_to_fix = ["cosmological_parameters--omch2", "intrinsic_alignment_parameters--a"],
                    vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-                   step_size = 0.5)
+                   step_size = 0.01,
+                   mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks'
+                   )
     # temp_vals = get_values(mock_run = 0, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"])
     # print(len(temp_vals['shear_xi_plus_binned']))
     # print(len(temp_vals['shear_xi_minus_binned']))
