@@ -476,16 +476,28 @@ class kcap_deriv:
             pass
 
 class read_kcap_values(kcap_deriv):
-    def __init__(self, mock_run, bin_ordering = ['bin_1_1', 
-                                                               'bin_2_1', 'bin_2_2', 
-                                                               'bin_3_1', 'bin_3_2', 'bin_3_3', 
-                                                               'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
-                                                               'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
+    def __init__(self, mock_run, mocks_dir = None, mocks_name = None, 
+                        bin_ordering = ['bin_1_1', 
+                                        'bin_2_1', 'bin_2_2', 
+                                        'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                                        'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                                        'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
 
         env = Env()
         env.read_env()
-        self.kids_mocks_dir = env.str('kids_mocks_dir')
-        self.kids_mocks_root_name = env.str('kids_mocks_root_name')
+
+        # mocks_dir settings
+        if mocks_dir == None:
+            self.kids_mocks_dir = env.str('kids_mocks_dir')
+        else:
+            self.kids_mocks_dir = mocks_dir
+
+        # mocks_name settings
+        if mocks_name == None:
+            self.kids_mocks_root_name = env.str('kids_mocks_root_name')
+        else:
+            self.kids_mocks_root_name = mocks_name
+
         self.mock_run = self.check_mock_run_exists(mock_run)
         self.bin_order = bin_ordering
 
@@ -598,28 +610,28 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         kcap_run.cleanup_deriv_folder()
         kcap_run.cleanup_dx()
 
-def get_values(mock_run, vals_to_read):
-    values_method = read_kcap_values(mock_run = mock_run)
+def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     values_read = values_method.read_vals(vals_to_read = vals_to_read)
     return values_read
 
-def get_theta(mock_run, vals_to_read):
-    values_method = read_kcap_values(mock_run = mock_run)
+def get_theta(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     values_read = values_method.read_thetas(vals_to_read = vals_to_read)
     return values_read
 
-def get_params(mock_run, vals_to_read):
-    values_method = read_kcap_values(mock_run = mock_run)
+def get_params(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     values_read = values_method.get_params(parameter_list = vals_to_read)
     return values_read
 
-def get_covariance(mock_run, which_cov = "covariance"):
-    values_method = read_kcap_values(mock_run = mock_run)
+def get_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     covariance = values_method.read_covariance(which_cov = which_cov)
     return covariance
 
-def get_inv_covariance(mock_run, which_cov = "covariance"):
-    values_method = read_kcap_values(mock_run = mock_run)
+def get_inv_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     inv_covariance = values_method.read_inv_covariance(which_cov = which_cov)
     return inv_covariance
 
