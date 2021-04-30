@@ -225,6 +225,8 @@ class kcap_deriv:
                 header, name = param.split("--")
                 if name == "sigma_8":
                     name = "sigma_8_input"
+                elif name == "s_8":
+                    name = "s_8_input"
                 values_config[header][name] = str(self.param_dict[param])
             else:
                 raise Exception("Unknown parameter specified in params_to_fix")
@@ -241,6 +243,8 @@ class kcap_deriv:
 
             if self.param_name == "sigma_8":
                 name = "sigma_8_input"
+            elif self.param_name == "s_8":
+                name = "s_8_input"
             else:
                 name = self.param_name
             file_text = ["#"+self.param_header+"--"+name+"\n", str(lower_two_step)+"\n"+str(lower_one_step)+"\n"+str(up_one_step)+"\n"+str(up_two_step)]
@@ -574,7 +578,7 @@ class read_kcap_values(kcap_deriv):
             cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
         covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/covariance.txt'
-        covariance = np.loadtxt(covariance_file, skiprows = 1)
+        covariance = np.transpose(np.loadtxt(covariance_file, skiprows = 1))
         return covariance
     
     def read_inv_covariance(self, which_cov = "covariance"):
@@ -584,8 +588,13 @@ class read_kcap_values(kcap_deriv):
             cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
         inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/inv_covariance.txt'
-        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
+        inv_covariance = np.transpose(np.loadtxt(inv_covariance_file, skiprows = 1))
         return inv_covariance
+    
+    def read_likelihood(self, like_name):
+        like_val = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/likelihoods/values.txt'
+        like_val = self.read_param_from_txt_file(file_location = like_val, parameter = like_name)
+        return like_val
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, mocks_dir = None, mocks_name = None, cleanup = 2):
     """
@@ -642,29 +651,42 @@ def get_inv_covariance(mock_run, which_cov = "covariance", mocks_dir = None, moc
     inv_covariance = values_method.read_inv_covariance(which_cov = which_cov)
     return inv_covariance
 
+def get_likelihood(mock_run, like_name = "2x2pt_like_like", mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
+    like_val = values_method.read_likelihood(like_name = like_name)
+    return like_val
+
 if __name__ == "__main__":
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--omch2", 
     #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
     #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
     #                step_size = 0.01)
-
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--omch2", 
+    #                params_to_fix = ["cosmological_parameters--sigma_8"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--sigma_8", 
+    #                params_to_fix = ["cosmological_parameters--omch2"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
     run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--omch2", 
-                   params_to_fix = ["cosmological_parameters--sigma_8"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial_2',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--sigma_8", 
+                   param_to_vary = "cosmological_parameters--s_8", 
                    params_to_fix = ["cosmological_parameters--omch2"],
                    vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
                    step_size = 0.01,
                    mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial_2',
+                   mocks_name = 'kids_1000_cosmology_fiducial',
                    cleanup = 2
                    )
 
