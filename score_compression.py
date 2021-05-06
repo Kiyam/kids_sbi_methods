@@ -50,7 +50,25 @@ def regular_likelihood_posterior(sim_number, fiducial_run, data_params, params, 
         gaus_post[i] += np.exp(-0.5 * np.dot(np.transpose(data_diff), np.dot(inv_cov, data_diff)))
         likelihood[i] += kcap_methods.get_likelihood(mock_run = i, like_name = "2x2pt_like_like", mocks_dir = mocks_dir, mocks_name = mocks_name)
     
-    return thetas, gaus_post, likelihood    
+    return thetas, gaus_post, likelihood
+
+def fisher_likelihood(sim_number, fiducial_run, data_params, params, fisher, mocks_dir, mocks_name):
+    """
+    Calculates the regular posterior assuming Gaussian likelihood.
+    """
+    thetas = np.zeros(shape = (sim_number, len(params)))
+    likelihood = np.zeros(sim_number)
+    fid_theta_dict = kcap_methods.get_params(mock_run = fiducial_run, vals_to_read = params, mocks_dir = mocks_dir, mocks_name = mocks_name)
+    fid_theta = np.array([fid_theta_dict[param] for param in params])
+
+    for i in range(sim_number):
+        param_dict = kcap_methods.get_params(mock_run = i, vals_to_read = params, mocks_dir = mocks_dir, mocks_name = mocks_name)
+        theta = np.array([param_dict[param] for param in params])
+        thetas[i] += theta
+        theta_diff = theta - fid_theta      
+        likelihood[i] += np.exp(-0.5 * np.dot(np.transpose(theta_diff), np.dot(fisher, theta_diff)))
+    
+    return thetas, likelihood     
 
 def get_fiducial_deriv(fiducial_run, deriv_params, data_params, mocks_dir = None, mocks_name = None):
     for i, deriv_param in enumerate(deriv_params):
@@ -155,14 +173,14 @@ def write_file(input_array, file_location, file_name):
     print("File succesfully saved as %s" % str(outfile))
 
 if __name__ == "__main__":
-    mocks_dir = "/home/ruyi_wsl/kcap_output/kids_1000_mocks_trial_5"
-    compressed_data, thetas, fid_data =  do_compression(sim_number = 4001, fiducial_run = 4001, data_run = 4000,
-                                                            deriv_params = ['omega_m', 'sigma_8'], 
-                                                            data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'],
-                                                            theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8'],
-                                                            linear = True, 
-                                                            mocks_dir = mocks_dir,
-                                                            mocks_name = "kids_1000_cosmology")
+    mocks_dir = "/home/ruyi_wsl/kcap_output/kids_1000_mocks_trial_4"
+    # compressed_data, thetas, fid_data =  do_compression(sim_number = 4001, fiducial_run = 4001, data_run = 4000,
+    #                                                         deriv_params = ['omega_m', 'sigma_8'], 
+    #                                                         data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'],
+    #                                                         theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8'],
+    #                                                         linear = True, 
+    #                                                         mocks_dir = mocks_dir,
+    #                                                         mocks_name = "kids_1000_cosmology")
     # compressed_data, thetas, fid_data =  do_compression(sim_number = 4001, fiducial_run = 4001, data_run = 4000,
     #                                                         deriv_params = ['omega_m', 's_8'], 
     #                                                         data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'],
@@ -171,7 +189,7 @@ if __name__ == "__main__":
     #                                                         mocks_dir = mocks_dir,
     #                                                         mocks_name = "kids_1000_cosmology")
     fisher_matrix = compute_fisher(fiducial_run = 4001, 
-                                   deriv_params = ['omega_m', 'sigma_8'], 
+                                   deriv_params = ['omega_m', 's_8'], 
                                    data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
                                    mocks_dir = mocks_dir,
                                    mocks_name = "kids_1000_cosmology")
@@ -181,15 +199,22 @@ if __name__ == "__main__":
     #                                mocks_dir = mocks_dir,
     #                                mocks_name = "kids_1000_cosmology")
 
-    file_loc_compress = mocks_dir + '/compressed_data'
-    write_file(input_array = compressed_data, file_location = file_loc_compress, file_name = 'compressed_data')
-    write_file(input_array = thetas, file_location = file_loc_compress, file_name = 'thetas')
-    write_file(input_array = fid_data, file_location = file_loc_compress, file_name = 'fid_data')
-    write_file(input_array = fisher_matrix, file_location = file_loc_compress, file_name = 'fisher_matrix')
+    # file_loc_compress = mocks_dir + '/compressed_data'
+    # write_file(input_array = compressed_data, file_location = file_loc_compress, file_name = 'compressed_data')
+    # write_file(input_array = thetas, file_location = file_loc_compress, file_name = 'thetas')
+    # write_file(input_array = fid_data, file_location = file_loc_compress, file_name = 'fid_data')
+    # write_file(input_array = fisher_matrix, file_location = file_loc_compress, file_name = 'fisher_matrix')
 
     thetas, post, likelihood = regular_likelihood_posterior(sim_number = 4002, fiducial_run = 4001, 
                                                 data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
                                                 params = ['cosmological_parameters--omega_m', 'cosmological_parameters--s_8'], 
+                                                mocks_dir = mocks_dir,
+                                                mocks_name = "kids_1000_cosmology")
+    
+    _, fisher_likelihood = fisher_likelihood(sim_number = 4002, fiducial_run = 4001, 
+                                                data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
+                                                params = ['cosmological_parameters--omega_m', 'cosmological_parameters--s_8'],
+                                                fisher = fisher_matrix, 
                                                 mocks_dir = mocks_dir,
                                                 mocks_name = "kids_1000_cosmology")
 
@@ -197,3 +222,4 @@ if __name__ == "__main__":
     write_file(input_array = thetas, file_location = file_loc_conventional, file_name = 'thetas')
     write_file(input_array = post, file_location = file_loc_conventional, file_name = 'posterior')
     write_file(input_array = likelihood, file_location = file_loc_conventional, file_name = 'likelihood')
+    write_file(input_array = fisher_likelihood, file_location = file_loc_conventional, file_name = 'fisher_likelihood')
