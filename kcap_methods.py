@@ -670,20 +670,20 @@ def get_likelihood(mock_run, like_name = "loglike_like", mocks_dir = None, mocks
     return like_val
 
 if __name__ == "__main__":
-    # run_kcap_deriv(mock_run = 0, 
-    #                param_to_vary = "cosmological_parameters--omch2", 
-    #                params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-    #                step_size = 0.01)
-    # run_kcap_deriv(mock_run = 0, 
-    #                param_to_vary = "cosmological_parameters--omch2", 
-    #                params_to_fix = ["cosmological_parameters--sigma_8"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned"],
-    #                step_size = 0.01,
-    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-    #                mocks_name = 'kids_1000_cosmology_fiducial',
-    #                cleanup = 2
-    #                )
+    run_kcap_deriv(mock_run = 0, 
+                   param_to_vary = "cosmological_parameters--omch2", 
+                   params_to_fix = ["cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
+                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+                   step_size = 0.01)
+    run_kcap_deriv(mock_run = 0, 
+                   param_to_vary = "cosmological_parameters--omch2", 
+                   params_to_fix = ["cosmological_parameters--sigma_8"],
+                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned"],
+                   step_size = 0.01,
+                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+                   mocks_name = 'kids_1000_cosmology_fiducial',
+                   cleanup = 2
+                   )
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--sigma_8", 
     #                params_to_fix = ["cosmological_parameters--omch2"],
@@ -693,15 +693,15 @@ if __name__ == "__main__":
     #                mocks_name = 'kids_1000_cosmology_fiducial',
     #                cleanup = 2
     #                )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--s_8", 
-                   params_to_fix = ["cosmological_parameters--omch2"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--s_8", 
+    #                params_to_fix = ["cosmological_parameters--omch2"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
 
     # temp_vals = get_values(mock_run = 3000, vals_to_read = ["shear_xi_plus_binned", "shear_xi_minus_binned"], mocks_dir = "/home/ruyi_wsl/kcap_output/kids_1000_mocks_trial_2", mocks_name = "kids_1000_cosmology")
     # print(len(temp_vals['shear_xi_plus_binned']))
