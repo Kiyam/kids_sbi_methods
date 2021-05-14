@@ -131,7 +131,6 @@ class kcap_deriv:
         if option == "mocks":
             with tarfile.open(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz', 'r:gz') as kcap_tar:
                 kcap_tar.extractall(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run)
-                #
                 kcap_tar.close()
                 print("Mock run extracted is: %s" % mock_run)
         elif option == "derivs":
@@ -480,11 +479,7 @@ class kcap_deriv:
 
 class read_kcap_values(kcap_deriv):
     def __init__(self, mock_run, mocks_dir = None, mocks_name = None, 
-                        bin_ordering = ['bin_1_1', 
-                                        'bin_2_1', 'bin_2_2', 
-                                        'bin_3_1', 'bin_3_2', 'bin_3_3', 
-                                        'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
-                                        'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']):
+                        bin_order = None):
 
         env = Env()
         env.read_env()
@@ -502,7 +497,15 @@ class read_kcap_values(kcap_deriv):
             self.kids_mocks_root_name = mocks_name
 
         self.mock_run = self.check_mock_run_exists(mock_run)
-        self.bin_order = bin_ordering
+
+        if bin_order == None:
+            self.bin_order = ['bin_1_1', 
+                              'bin_2_1', 'bin_2_2', 
+                              'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                              'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                              'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
+        else:
+            self.bin_order = bin_order
 
     def read_vals(self, vals_to_read):
         if isinstance(vals_to_read, list):
@@ -578,7 +581,7 @@ class read_kcap_values(kcap_deriv):
             cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
         covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/covariance.txt'
-        covariance = np.transpose(np.loadtxt(covariance_file, skiprows = 1))
+        covariance = np.loadtxt(covariance_file, skiprows = 1)
         return covariance
     
     def read_inv_covariance(self, which_cov = "covariance"):
@@ -588,13 +591,18 @@ class read_kcap_values(kcap_deriv):
             cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
 
         inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/inv_covariance.txt'
-        inv_covariance = np.transpose(np.loadtxt(inv_covariance_file, skiprows = 1))
+        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
         return inv_covariance
     
     def read_likelihood(self, like_name):
         like_val = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/likelihoods/values.txt'
         like_val = self.read_param_from_txt_file(file_location = like_val, parameter = like_name)
         return like_val
+    
+    def read_noisey_data(self):
+        data_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/noise_mean.txt'
+        noisey_data = np.genfromtxt(data_file, comments = '#')
+        return noisey_data
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, mocks_dir = None, mocks_name = None, cleanup = 2):
     """
@@ -626,13 +634,13 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
             kcap_run.cleanup_deriv_folder()
             kcap_run.cleanup_dx()
 
-def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
-    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
+def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None, bin_order = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
     values_read = values_method.read_vals(vals_to_read = vals_to_read)
     return values_read
 
-def get_theta(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
-    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
+def get_theta(mock_run, vals_to_read, mocks_dir = None, mocks_name = None, bin_order = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
     values_read = values_method.read_thetas(vals_to_read = vals_to_read)
     return values_read
 
@@ -651,7 +659,12 @@ def get_inv_covariance(mock_run, which_cov = "covariance", mocks_dir = None, moc
     inv_covariance = values_method.read_inv_covariance(which_cov = which_cov)
     return inv_covariance
 
-def get_likelihood(mock_run, like_name = "2x2pt_like_like", mocks_dir = None, mocks_name = None):
+def get_noisey_data(mock_run, mocks_dir = None, mocks_name = None):
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
+    noisey_data = values_method.read_noisey_data()
+    return noisey_data
+
+def get_likelihood(mock_run, like_name = "loglike_like", mocks_dir = None, mocks_name = None):
     values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     like_val = values_method.read_likelihood(like_name = like_name)
     return like_val
@@ -665,18 +678,18 @@ if __name__ == "__main__":
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--omch2", 
     #                params_to_fix = ["cosmological_parameters--sigma_8"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned"],
     #                step_size = 0.01,
-    #                mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
     #                mocks_name = 'kids_1000_cosmology_fiducial',
     #                cleanup = 2
     #                )
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--sigma_8", 
     #                params_to_fix = ["cosmological_parameters--omch2"],
-    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned"],
     #                step_size = 0.01,
-    #                mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
     #                mocks_name = 'kids_1000_cosmology_fiducial',
     #                cleanup = 2
     #                )
@@ -685,7 +698,7 @@ if __name__ == "__main__":
                    params_to_fix = ["cosmological_parameters--omch2"],
                    vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory_data_covariance"],
                    step_size = 0.01,
-                   mocks_dir = '/home/ruyi_wsl/kcap_output/kids_mocks',
+                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
                    mocks_name = 'kids_1000_cosmology_fiducial',
                    cleanup = 2
                    )
