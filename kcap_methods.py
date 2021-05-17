@@ -499,11 +499,16 @@ class read_kcap_values(kcap_deriv):
         self.mock_run = self.check_mock_run_exists(mock_run)
 
         if bin_order == None:
-            self.bin_order = ['bin_1_1', 
-                              'bin_2_1', 'bin_2_2', 
-                              'bin_3_1', 'bin_3_2', 'bin_3_3', 
-                              'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
-                              'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
+            # self.bin_order = ['bin_1_1', 
+            #                   'bin_2_1', 'bin_2_2', 
+            #                   'bin_3_1', 'bin_3_2', 'bin_3_3', 
+            #                   'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+            #                   'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
+            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
+                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
+                              'bin_3_3', 'bin_4_3', 'bin_5_3',
+                              'bin_4_4', 'bin_5_4',
+                              'bin_5_5']
         else:
             self.bin_order = bin_order
 

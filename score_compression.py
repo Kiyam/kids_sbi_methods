@@ -216,12 +216,12 @@ def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, linear_c
 
 
 if __name__ == "__main__":
-    # main(deriv_params = ['omega_m', 'sigma_8'], 
-    #      data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
-    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8'], 
-    #      mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_7", 
-    #      mocks_name = "kids_1000_cosmology", 
-    #      linear_compression = True)
+    main(deriv_params = ['omega_m', 'sigma_8'], 
+         data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
+         theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8'], 
+         mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_7", 
+         mocks_name = "kids_1000_cosmology", 
+         linear_compression = True)
 
     main(deriv_params = ['omega_m', 's_8'], 
          data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
@@ -229,3 +229,13 @@ if __name__ == "__main__":
          mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_8", 
          mocks_name = "kids_1000_cosmology", 
          linear_compression = True)
+
+    # data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned']
+    # mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_test'
+    # mocks_name = 'kids_1000_cosmology'
+    # data_vector_dict = kcap_methods.get_values(mock_run = 0, vals_to_read = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name) # The datavector stored as a dict of 2 flattened numpy arrays
+    # data_vector = np.array([])
+    # for data_param in data_params:
+    #     data_vector = np.append(data_vector, data_vector_dict[data_param])
+    
+    # write_file(input_array = data_vector, file_location = mocks_dir + '/' + mocks_name, file_name = 'bin_ordered_data')
