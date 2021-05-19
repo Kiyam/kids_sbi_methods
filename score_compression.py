@@ -216,19 +216,19 @@ def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, linear_c
 
 
 if __name__ == "__main__":
-    main(deriv_params = ['omega_m', 'sigma_8'], 
+    main(deriv_params = ['omega_m', 'sigma_8', 'a'], 
          data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
-         theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8'], 
-         mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_7", 
+         theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8', 'intrinsic_alignment_parameters--a'], 
+         mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_9", 
          mocks_name = "kids_1000_cosmology", 
          linear_compression = True)
 
-    main(deriv_params = ['omega_m', 's_8'], 
-         data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
-         theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--s_8'], 
-         mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_8", 
-         mocks_name = "kids_1000_cosmology", 
-         linear_compression = True)
+    # main(deriv_params = ['omega_m', 's_8'], 
+    #      data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
+    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--s_8'], 
+    #      mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_8", 
+    #      mocks_name = "kids_1000_cosmology", 
+    #      linear_compression = True)
 
     # data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned']
     # mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_test'
