@@ -1,13 +1,14 @@
 {
 	"folders": [
 		{
-			"path": "../.."
+			"path": "/home/ruyi/cosmology/"
 		},
 		{
-			"path": "../../../../mnt/Node-Data/cosmology"
+			"path": "/mnt/Node-Data/cosmology"
 		}
 	],
 	"settings": {
-		"jupyter.jupyterServerType": "local"
+		"jupyter.jupyterServerType": "local",
+		"python.analysis.extraPaths": ["${workspaceFolder}/kcap_methods"]
 	}
 }

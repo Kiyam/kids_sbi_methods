@@ -1,7 +1,7 @@
 import numpy as np
-import kcap_methods
 import os
 import errno
+import kcap_methods
 
 #TODO Still need to figure out how to read the covariance matrix from kcap
 
@@ -216,6 +216,7 @@ def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, linear_c
 
 
 if __name__ == "__main__":
+    # print("yes")
     main(deriv_params = ['omega_m', 'sigma_8', 'a'], 
          data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], 
          theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8', 'intrinsic_alignment_parameters--a'], 

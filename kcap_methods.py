@@ -12,6 +12,8 @@ from environs import Env
 
 #TODO - Need to set it so that the stepsize is a relative stepsize, typically of order 1*10^-2 -> 1*10^-5
 
+#NOTE - The params that can be varied in the future are h, ns, A_IA, A_bary, sigma_z, sigma_c, sigma_8
+
 class kcap_deriv:
     def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff, 
                        mocks_dir = None, mocks_name = None, mocks_ini_file = None, mocks_values_file = None,
@@ -295,7 +297,8 @@ class kcap_deriv:
 
         for deriv_run in range(4):
             for param in self.vals_to_diff:
-                if "theory" or "covariance" in param:
+                print(param)
+                if ("theory" or "covariance") in param:
                     new_subdir_root = "theory_data_covariance_" + self.param_name
                     shutil.copytree(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_'+str(deriv_run)+'/theory_data_covariance', 
                                     self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+new_subdir_root+step_list[deriv_run])
@@ -442,7 +445,7 @@ class kcap_deriv:
 
             first_deriv_vals = ((1/12)*minus_2dx_vals - (2/3)*minus_1dx_vals + (2/3)*plus_1dx_vals - (1/12)*plus_2dx_vals)/abs_step_size
 
-            if "covariance" or "theory" in deriv_vals:
+            if ("covariance" or "theory") in deriv_vals:
                 deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance_'+self.param_name+"_deriv/"
             else:
                 deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_name+"_deriv/"
@@ -461,11 +464,9 @@ class kcap_deriv:
                 deriv_file = deriv_dir_path+"theory.txt"
                 np.savetxt(deriv_file, first_deriv_vals, newline="\n", header="covariance")
             else:
-                deriv_file = deriv_dir_path+"theory.txt"
-                np.savetxt(deriv_file, first_deriv_vals, newline="\n", header="theory")
-                # for i, vals in enumerate(first_deriv_vals):
-                #     deriv_file = deriv_dir_path+bin_names[i]+".txt"
-                #     np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
+                for i, vals in enumerate(first_deriv_vals):
+                    deriv_file = deriv_dir_path+bin_names[i]+".txt"
+                    np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
         print("Derivatives saved succesfully")
 
     def first_omega_m_deriv(self):
@@ -763,8 +764,8 @@ if __name__ == "__main__":
     #                cleanup = 2
     #                )
     run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "intrinsic_alignment_parameters--a", 
-                   params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8"],
+                   param_to_vary = "cosmological_parameters--n_s", 
+                   params_to_fix = ["cosmological_parameters--omch2", "cosmological_parameters--sigma_8", "intrinsic_alignment_parameters--a"],
                    vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned"],
                    step_size = 0.01,
                    mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
