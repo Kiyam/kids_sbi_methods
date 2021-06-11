@@ -42,6 +42,39 @@ class TestScoreMethods(unittest.TestCase):
                                   242, 252, 262, 272, 282]])
         
         np.testing.assert_array_almost_equal(derivs, golden_deriv, decimal = 5)
+    
+    def test_computer_fisher(self):
+        fisher_matrix = sc.compute_fisher(fiducial_run = 1,
+                                          deriv_params = ['deriv_1', 'deriv_2'],
+                                          data_params = ['data_1', 'data_2'],
+                                          mocks_dir = "/home/ruyi/cosmology/kcap_methods/tests/test_files", 
+                                          mocks_name = "test_mock",
+                                          bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_2', 'bin_4_3'])
+
+        golden_deriv = np.array([[111, 121, 131, 141, 151,
+                                  121, 131, 141, 151, 161,
+                                  131, 141, 151, 161, 171,
+                                  141, 151, 161, 171, 181,
+                                  211, 221, 231, 241, 251,
+                                  122, 132, 142, 152, 162,
+                                  132, 142, 152, 162, 172,
+                                  142, 152, 162, 172, 182],
+                                 [112, 122, 132, 142, 152,
+                                  122, 132, 142, 152, 162,
+                                  132, 142, 152, 162, 172,
+                                  142, 152, 162, 172, 182,
+                                  212, 222, 232, 242, 252,
+                                  222, 232, 242, 252, 262,
+                                  232, 242, 252, 262, 272,
+                                  242, 252, 262, 272, 282]])
+        
+        golden_inv_covariance = km.get_inv_covariance(mock_run = 1,
+                                                       mocks_dir = "/home/ruyi/cosmology/kcap_methods/tests/test_files", 
+                                                       mocks_name = "test_mock")
+        
+        golden_fisher = np.dot(golden_deriv, np.dot(golden_inv_covariance, np.transpose(golden_deriv)))
+
+        np.testing.assert_array_almost_equal(fisher_matrix, golden_fisher, decimal = 5)
 
 if __name__ == '__main__':
     unittest.main()
