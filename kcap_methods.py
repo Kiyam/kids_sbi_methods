@@ -482,19 +482,41 @@ class kcap_deriv:
                     np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
         print("Derivatives saved succesfully")
 
-    def first_omega_m_deriv(self):
-        if "omch2" in self.param_to_vary:
-            h = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'h0')
-            for deriv_vals in self.vals_to_diff:
-                if "covariance" in deriv_vals:
+    def first_omega_m_deriv(self, params_varied):       
+        h = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'h0')
+        ombh2 = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'ombh2')
+        omch2 = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'omch2')
+        omega_m = self.read_param_from_txt_file(file_location = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'omega_m')
+        
+        for deriv_vals in self.vals_to_diff:
+            if "covariance" in deriv_vals:
+                if "cosmological_parameters--omch2" in params_varied: 
                     omch_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--omch2_deriv/covariance.txt'
                     with open(omch_deriv_file, 'r') as flx:
                         omch_deriv = np.loadtxt(flx)
-                elif "theory" in deriv_vals:
+                if "cosmological_parameters--ombh2" in params_varied:
+                    ombh_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--ombh2_deriv/covariance.txt'
+                    with open(ombh_deriv_file, 'r') as flx:
+                        ombh_deriv = np.loadtxt(flx)
+                if "cosmological_parameters--h0" in params_varied:
+                    h0_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--h0_deriv/covariance.txt'
+                    with open(h0_deriv_file, 'r') as flx:
+                        h0_deriv = np.loadtxt(flx)
+            elif "theory" in deriv_vals:
+                if "cosmological_parameters--omch2" in params_varied: 
                     omch_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--omch2_deriv/theory.txt'
                     with open(omch_deriv_file, 'r') as flx:
                         omch_deriv = np.loadtxt(flx)
-                else:
+                if "cosmological_parameters--ombh2" in params_varied:
+                    ombh_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--ombh2_deriv/theory.txt'
+                    with open(ombh_deriv_file, 'r') as flx:
+                        ombh_deriv = np.loadtxt(flx)
+                if "cosmological_parameters--h0" in params_varied:
+                    h0_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_cosmological_parameters--h0_deriv/theory.txt'
+                    with open(h0_deriv_file, 'r') as flx:
+                        h0_deriv = np.loadtxt(flx)
+            else:
+                if "cosmological_parameters--omch2" in params_varied: 
                     omch_deriv_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_cosmological_parameters--omch2_deriv/bin*.txt')
                     bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in omch_deriv_files]
                     omch_deriv = np.array([])
@@ -503,38 +525,64 @@ class kcap_deriv:
                             values = np.loadtxt(flx)
                         omch_deriv = np.append(omch_deriv, values)
                     omch_deriv = omch_deriv.reshape((len(bin_names), -1))
-
-                omega_m_deriv_vals = omch_deriv * (h**2)
+                if "cosmological_parameters--ombh2" in params_varied: 
+                    ombh_deriv_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_cosmological_parameters--ombh2_deriv/bin*.txt')
+                    bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in ombh_deriv_files]
+                    ombh_deriv = np.array([])
+                    for dx_file_name in ombh_deriv_files:
+                        with open(dx_file_name, 'r') as flx:
+                            values = np.loadtxt(flx)
+                        ombh_deriv = np.append(ombh_deriv, values)
+                    ombh_deriv = ombh_deriv.reshape((len(bin_names), -1))
+                if "cosmological_parameters--h0" in params_varied: 
+                    h0_deriv_files = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_cosmological_parameters--h0_deriv/bin*.txt')
+                    bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in h0_deriv_files]
+                    h0_deriv = np.array([])
+                    for dx_file_name in h0_deriv_files:
+                        with open(dx_file_name, 'r') as flx:
+                            values = np.loadtxt(flx)
+                        h0_deriv = np.append(h0_deriv, values)
+                    h0_deriv = h0_deriv.reshape((len(bin_names), -1))
+            try:
+                omch2_component = omch_deriv * (h**2)
+            except:
+                omch2_component = 0
+            try:
+                ombh2_component = ombh_deriv * (h**2)
+            except:
+                ombh2_component = 0
+            try:
+                h_component = -0.5 * ((omch2 + ombh2)**0.5) * (omega_m ** (-1.5)) * h0_deriv
+            except:
+                h_component = 0
                 
-                print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (deriv_vals))
+            omega_m_deriv_vals = omch2_component + ombh2_component + h_component
+                
+            print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (deriv_vals))
 
-                if ("covariance" or "theory") in deriv_vals:
-                    deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance_cosmological_parameters--omega_m_deriv/'
-                else:
-                    deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_cosmological_parameters--omega_m_deriv/'
+            if ("covariance" or "theory") in deriv_vals:
+                deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance_cosmological_parameters--omega_m_deriv/'
+            else:
+                deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_cosmological_parameters--omega_m_deriv/'
 
-                if not os.path.exists(os.path.dirname(deriv_dir_path)):
-                    try:
-                        os.makedirs(os.path.dirname(deriv_dir_path))
-                    except OSError as exc: # Guard against race condition
-                        if exc.errno != errno.EEXIST:
-                            raise
+            if not os.path.exists(os.path.dirname(deriv_dir_path)):
+                try:
+                    os.makedirs(os.path.dirname(deriv_dir_path))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
 
-                if "covariance" in deriv_vals:
-                    deriv_file = deriv_dir_path+"covariance.txt"
-                    np.savetxt(deriv_file, omega_m_deriv_vals, newline="\n", header="covariance")
-                elif "theory" in deriv_vals:
-                    deriv_file = deriv_dir_path+"theory.txt"
-                    np.savetxt(deriv_file, omega_m_deriv_vals, newline="\n", header="theory")
-                else:
-                    for i, vals in enumerate(omega_m_deriv_vals):
-                        deriv_file = deriv_dir_path+bin_names[i]+".txt"
-                        np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
-            
+            if "covariance" in deriv_vals:
+                deriv_file = deriv_dir_path+"covariance.txt"
+                np.savetxt(deriv_file, omega_m_deriv_vals, newline="\n", header="covariance")
+            elif "theory" in deriv_vals:
+                deriv_file = deriv_dir_path+"theory.txt"
+                np.savetxt(deriv_file, omega_m_deriv_vals, newline="\n", header="theory")
+            else:
+                for i, vals in enumerate(omega_m_deriv_vals):
+                    deriv_file = deriv_dir_path+bin_names[i]+".txt"
+                    np.savetxt(deriv_file, vals, newline="\n", header=bin_names[i])
             print("Derivatives saved succesfully")
-        else:
-            print("Not running omega_m_deriv as omch2 has not been varied in this deriv run")
-            pass
 
 class organise_kcap_output(kcap_deriv):
     def __init__(self, mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
@@ -573,39 +621,56 @@ class organise_kcap_output(kcap_deriv):
             mock_run = self.mock_run_start + i
             self.check_mock_run_exists(mock_run)
         print("All files found and extracted!")
+    
+    def extract_and_delete(self):
+        for i in range(self.num_mock_runs):
+            mock_run = self.mock_run_start + i
+            self.check_mock_run_exists(mock_run)
+            self.delete_unwanted(mock_run)
+            self.delete_mock_tgz(mock_run)
 
-    def delete_unwanted(self):
+    def delete_unwanted(self, mock_run):
+        #! This should only be run on the direct kcap output, not any folder containing derivatives
+        all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/*')
+        kept_folders = []
+        for folder in all_folders:
+            for to_keep in self.folders_to_keep:
+                if re.search(to_keep, folder):
+                    kept_folders.append(folder)
+        
+        folders_to_delete = list(set(all_folders) - set(kept_folders))
+        
+        for folder_to_delete in folders_to_delete:
+            shutil.rmtree(folder_to_delete)
+        
+        for file_to_remove in self.files_to_remove:
+            try:
+                os.remove(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/'+file_to_remove)
+            except:
+                pass
+            
+        self.check_wanted_folders(mock_run = mock_run)
+        print("Succesfully deleted all superfluous files and folders in extracted mock run %s." % str(mock_run))
+    
+    def delete_all_unwanted(self):
         #! This should only be run on the direct kcap output, not any folder containing derivatives
         for i in range(self.num_mock_runs):
             mock_run = self.mock_run_start + i
-            all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/*')
-            kept_folders = []
-            for folder in all_folders:
-                for to_keep in self.folders_to_keep:
-                    if re.search(to_keep, folder):
-                        kept_folders.append(folder)
-            
-            folders_to_delete = list(set(all_folders) - set(kept_folders))
-            
-            for folder_to_delete in folders_to_delete:
-                shutil.rmtree(folder_to_delete)
-            
-            for file_to_remove in self.files_to_remove:
-                try:
-                    os.remove(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/'+file_to_remove)
-                except:
-                    pass
-                
-            self.check_wanted_folders(mock_run = mock_run)
+            self.delete_unwanted(self, mock_run)
             print("All desired files and folders in extracted mock run %s have been succesfully deleted." % str(mock_run))
         print("All unwanted folders and files delete with hopefully no missing files.")
-    
+        
     def check_wanted_folders(self, mock_run):
         all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/*')
         if len(all_folders) != len(self.folders_to_keep):
             raise Exception("Some folders missing! Please double check the files in mock run %s carefull" % str(mock_run))
-     
-    def delete_tgz(self):
+    
+    def delete_mock_tgz(self, mock_run):
+        tgz_to_delete = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'.tgz'
+        os.remove(tgz_to_delete)
+        print("Removed %s" %str(tgz_to_delete))
+        
+    def delete_all_tgz(self):
         all_tgz = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'*.tgz')
         for tgz_file in all_tgz:
             os.remove(tgz_file)
@@ -772,7 +837,6 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
     check = kcap_run.check_existing_derivs()
     if check is True:
         print("All files found for these parameters, skipping this particular deriv run")
-        kcap_run.first_omega_m_deriv()
     else:
         print("Not all values found, continuing script...")
         pass
@@ -781,7 +845,6 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         kcap_run.run_deriv_kcap(mpi_opt = True, threads = 4)
         kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size)
         kcap_run.first_deriv(abs_step_size = abs_step_size)
-        kcap_run.first_omega_m_deriv()
         if cleanup == 0:
             pass
         elif cleanup == 1:
@@ -789,6 +852,20 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
         elif cleanup == 2:
             kcap_run.cleanup_deriv_folder()
             kcap_run.cleanup_dx()
+
+def run_omega_m_deriv(mock_run, params_varied, vals_to_diff, mocks_dir = None, mocks_name = None):
+    kcap_run = kcap_deriv(mock_run = mock_run, 
+                          param_to_vary = "cosmological_parameters--omega_m", 
+                          params_to_fix = [None],
+                          vals_to_diff = vals_to_diff,
+                          mocks_dir = mocks_dir, 
+                          mocks_name = mocks_name)
+    check = kcap_run.check_existing_derivs()
+    if check is True:
+        print("All files found for these parameters, skipping this particular deriv run")
+    else:
+        print("Not all values found, continuing script...")
+        kcap_run.first_omega_m_deriv(params_varied)
 
 def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None, bin_order = None):
     values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
@@ -873,108 +950,137 @@ def cleanup_folders(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name 
     clean_method.delete_unwanted()
     clean_method.delete_tgz()
     print("Enjoy that sweet sweet disk space!")
+
+def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
+                   folders_to_keep = ["shear_xi_minus_binned", 
+                                      "shear_xi_plus_binned", 
+                                      "cosmological_parameters",
+                                      "intrinsic_alignment_parameters",
+                                      "growth_parameters",
+                                      "bias_parameters",
+                                      "halo_model_parameters",
+                                      "likelihoods",
+                                      "theory_data_covariance"],
+                   files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"]):
+    print("Initiating unzip and cleanup afterwards... ")
+    clean_method = organise_kcap_output(mock_run_start = mock_run_start, num_mock_runs = num_mock_runs, mocks_dir = mocks_dir, mocks_name = mocks_name, 
+                                        folders_to_keep = folders_to_keep, files_to_remove = files_to_remove)
+    clean_method.extract_and_delete()
+    print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    # cleanup_folders(mock_run_start = 0, num_mock_runs = 4000, mocks_dir = '/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_15',
+    # cleanup_folders(mock_run_start = 0, num_mock_runs = 4000, mocks_dir = '/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_15',
     #                mocks_name = 'kids_1000_cosmology')
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "halo_model_parameters--a", 
-                   params_to_fix = ["cosmological_parameters--omch2", 
-                                    "intrinsic_alignment_parameters--a", 
-                                    "cosmological_parameters--sigma_8", 
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--h0", 
-                                    "cosmological_parameters--ombh2"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--omch2", 
-                   params_to_fix = ["halo_model_parameters--a", 
-                                    "intrinsic_alignment_parameters--a", 
-                                    "cosmological_parameters--sigma_8", 
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--h0", 
-                                    "cosmological_parameters--ombh2"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "intrinsic_alignment_parameters--a", 
-                   params_to_fix = ["cosmological_parameters--omch2",
-                                    "cosmological_parameters--sigma_8", 
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--h0", 
-                                    "cosmological_parameters--ombh2",
-                                    "halo_model_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--sigma_8", 
-                   params_to_fix = ["cosmological_parameters--omch2", 
-                                    "intrinsic_alignment_parameters--a",
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--h0", 
-                                    "cosmological_parameters--ombh2",
-                                    "halo_model_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--n_s", 
-                   params_to_fix = ["cosmological_parameters--omch2", 
-                                    "intrinsic_alignment_parameters--a", 
-                                    "cosmological_parameters--sigma_8",
-                                    "cosmological_parameters--h0", 
-                                    "cosmological_parameters--ombh2",
-                                    "halo_model_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--h0",
-                   params_to_fix = ["cosmological_parameters--omch2", 
-                                    "intrinsic_alignment_parameters--a", 
-                                    "cosmological_parameters--sigma_8", 
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--ombh2",
-                                    "halo_model_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
-    run_kcap_deriv(mock_run = 0, 
-                   param_to_vary = "cosmological_parameters--ombh2", 
-                   params_to_fix = ["cosmological_parameters--omch2", 
-                                    "intrinsic_alignment_parameters--a", 
-                                    "cosmological_parameters--sigma_8", 
-                                    "cosmological_parameters--n_s", 
-                                    "cosmological_parameters--h0",
-                                    "halo_model_parameters--a"],
-                   vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
-                   step_size = 0.01,
-                   mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
-                   mocks_name = 'kids_1000_cosmology_fiducial',
-                   cleanup = 2
-                   )
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 8000, mocks_dir = '/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_16',
+                   mocks_name = 'kids_1000_cosmology')
+    
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "halo_model_parameters--a", 
+    #                params_to_fix = ["cosmological_parameters--omch2", 
+    #                                 "intrinsic_alignment_parameters--a", 
+    #                                 "cosmological_parameters--sigma_8", 
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--h0", 
+    #                                 "cosmological_parameters--ombh2"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--omch2", 
+    #                params_to_fix = ["halo_model_parameters--a", 
+    #                                 "intrinsic_alignment_parameters--a", 
+    #                                 "cosmological_parameters--sigma_8", 
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--h0", 
+    #                                 "cosmological_parameters--ombh2"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "intrinsic_alignment_parameters--a", 
+    #                params_to_fix = ["cosmological_parameters--omch2",
+    #                                 "cosmological_parameters--sigma_8", 
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--h0", 
+    #                                 "cosmological_parameters--ombh2",
+    #                                 "halo_model_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--sigma_8", 
+    #                params_to_fix = ["cosmological_parameters--omch2", 
+    #                                 "intrinsic_alignment_parameters--a",
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--h0", 
+    #                                 "cosmological_parameters--ombh2",
+    #                                 "halo_model_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--n_s", 
+    #                params_to_fix = ["cosmological_parameters--omch2", 
+    #                                 "intrinsic_alignment_parameters--a", 
+    #                                 "cosmological_parameters--sigma_8",
+    #                                 "cosmological_parameters--h0", 
+    #                                 "cosmological_parameters--ombh2",
+    #                                 "halo_model_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--h0",
+    #                params_to_fix = ["cosmological_parameters--omch2", 
+    #                                 "intrinsic_alignment_parameters--a", 
+    #                                 "cosmological_parameters--sigma_8", 
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--ombh2",
+    #                                 "halo_model_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_kcap_deriv(mock_run = 0, 
+    #                param_to_vary = "cosmological_parameters--ombh2", 
+    #                params_to_fix = ["cosmological_parameters--omch2", 
+    #                                 "intrinsic_alignment_parameters--a", 
+    #                                 "cosmological_parameters--sigma_8", 
+    #                                 "cosmological_parameters--n_s", 
+    #                                 "cosmological_parameters--h0",
+    #                                 "halo_model_parameters--a"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                step_size = 0.01,
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial',
+    #                cleanup = 2
+    #                )
+    # run_omega_m_deriv(mock_run = 0, 
+    #                params_varied = ["cosmological_parameters--omch2",
+    #                                 "cosmological_parameters--ombh2",
+    #                                 "cosmological_parameters--h0"],
+    #                vals_to_diff = ["shear_xi_minus_binned", "shear_xi_plus_binned", "theory"],
+    #                mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks',
+    #                mocks_name = 'kids_1000_cosmology_fiducial'
+    #                )
+    
     # run_kcap_deriv(mock_run = 0, 
     #                param_to_vary = "cosmological_parameters--omch2", 
     #                params_to_fix = ["cosmological_parameters--s_8", "cosmological_parameters--n_s", "intrinsic_alignment_parameters--a", "cosmological_parameters--sigma_8"],

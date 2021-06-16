@@ -141,9 +141,7 @@ def do_compression(sim_number, fiducial_run, data_run, deriv_params, data_params
     theta_names - expected in the full cosmosis naming chain, e.g. cosmological_parameters--omch2
     """
     fid_vector = get_fiducial_vector(fiducial_run = fiducial_run, data_params = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    print(fid_vector)
     deriv_matrix = get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    print(deriv_matrix)
     if linear is not True:
         cov_deriv_tensor = get_fiducial_cov_deriv(fiducial_run = fiducial_run, deriv_matrix = deriv_matrix, deriv_params = deriv_params, mocks_dir = mocks_dir, mocks_name = mocks_name)
     else:
@@ -281,11 +279,24 @@ if __name__ == "__main__":
          theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
                          'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
                          'cosmological_parameters--h0', 'halo_model_parameters--a'], 
-         mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_15", 
+         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_15", 
          mocks_name = "kids_1000_cosmology", 
          sim_number = 4000,
-         compressed_name = 'compressed_data_binned', 
+         compressed_name = 'compressed_data', 
          linear_compression = True)   
+    
+    # main(deriv_params = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
+    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
+    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
+    #      data_params = ['theory'], 
+    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
+    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
+    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
+    #      mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_15", 
+    #      mocks_name = "kids_1000_cosmology", 
+    #      sim_number = 4000,
+    #      compressed_name = 'compressed_data_binned', 
+    #      linear_compression = True)   
 
     # data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned']
     # mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_deriv_test'
