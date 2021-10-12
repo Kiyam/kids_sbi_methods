@@ -5,19 +5,66 @@ import kcap_methods
 
 #TODO Still need to figure out how to read the covariance matrix from kcap
 
-def compute_fisher(fiducial_run, deriv_params, data_params, mocks_dir = None, mocks_name = None, bin_order = None):
+class delfi_score_compress:
+    def __init__(self, theta_fiducial, fid_vector, deriv_matrix, inv_covariance, fisher_matrix, nuisance_parameter_indices = None):
+        self.theta_fiducial = theta_fiducial
+        self.fid_vector = fid_vector
+        self.deriv_matrix = deriv_matrix
+        self.inv_covariance = inv_covariance
+        self.fisher_matrix = fisher_matrix
+        
+        if nuisance_parameter_indices is not None:
+            self.nuisance_parameter_indices = nuisance_parameter_indices
+        
+    def score_compress(self, data_vector):
+        """
+        General Score compression
+        """
+        data_diff = data_vector - self.fid_vector  
+        linear_score = np.dot(self.deriv_matrix, np.dot(self.inv_covariance, data_diff))
+        inverse_fisher = np.linalg.inv(self.fisher_matrix)
+        if self.nuisance_parameter_indices:
+            # for this to work, the parameters to be marginalised out have to be at the end of the matrix
+            full_mle_fiducial = self.theta_fiducial + np.transpose(np.dot(inverse_fisher, np.transpose(linear_score)))
+            
+            mle_fiducial_wanted = full_mle_fiducial[: min(self.nuisance_parameter_indices)]
+            mle_fiducial_nuisance = full_mle_fiducial[min(self.nuisance_parameter_indices) :]
+            sub_nuisance_fisher = self.fisher_matrix[:, self.nuisance_parameter_indices]
+            nuisance_inv_fisher = np.linalg.inv(self.fisher_matrix[np.ix_(self.nuisance_parameter_indices, self.nuisance_parameter_indices)])
+            
+            mle_fiducial = mle_fiducial_wanted - np.dot(sub_nuisance_fisher, np.dot(nuisance_inv_fisher, mle_fiducial_nuisance))
+        else:
+            mle_fiducial = self.theta_fiducial + np.transpose(np.dot(inverse_fisher, np.transpose(linear_score)))
+        return mle_fiducial 
+
+def nuisance_hardened_mle(theta_fiducial, fisher, score, nuisance_index = [-1]):  
+    wanted_score = score[:,:min(nuisance_index)]
+    nuisance_score = score[:,min(nuisance_index):]
+    sub_nuisance_fisher = fisher[np.ix_(list(range(0, min(nuisance_index))), nuisance_index)]
+    
+    if len(nuisance_index) == 1:
+        nuisance_inv_fisher = 1/fisher[nuisance_index[0]][nuisance_index[0]]
+        # marginalised_component = np.dot((sub_nuisance_fisher * nuisance_inv_fisher), nuisance_score.T).T
+        marginalised_component = np.dot(sub_nuisance_fisher, (nuisance_inv_fisher * nuisance_score).T).T
+    else:
+        nuisance_inv_fisher = np.linalg.inv(fisher[np.ix_(nuisance_index, nuisance_index)])
+        # marginalised_component = np.dot(np.dot(sub_nuisance_fisher, nuisance_inv_fisher), nuisance_score.T).T
+        marginalised_component = np.dot(sub_nuisance_fisher, np.dot(nuisance_inv_fisher, nuisance_score.T)).T
+    
+    marginalised_score = wanted_score - marginalised_component
+    marginalised_inv_fisher = np.linalg.inv(fisher)[:min(nuisance_index), :min(nuisance_index)]
+    
+    return marginalised_score, marginalised_inv_fisher
+    
+
+def compute_fisher(fiducial_run, deriv_params, data_params, cov_inv_method = "covariance", mocks_dir = None, mocks_name = None, bin_order = None):
     """
     Computes the fisher matrix based on the params set, 
     e.g params = ["shear_xi_plus_omch2_deriv", "shear_xi_plus_sigma_8_deriv", "shear_xi_minus_omch2_deriv", "shear_xi_minus_sigma_8_deriv"]
     """
-    # inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    # assert inv_covariance.shape[0] == inv_covariance.shape[1], "Square matrix for the inverse covariance not found"
-    
-    # symmetrised_inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = "symmetrised", mocks_dir = mocks_dir, mocks_name = mocks_name)
-    # cholesky_inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = "cholesky", mocks_dir = mocks_dir, mocks_name = mocks_name)
-    eigen_inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = "eigen", mocks_dir = mocks_dir, mocks_name = mocks_name)
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = cov_inv_method, mocks_dir = mocks_dir, mocks_name = mocks_name)
 
-    deriv_matrix = np.zeros(shape = (len(deriv_params), eigen_inv_covariance.shape[0]))
+    deriv_matrix = np.zeros(shape = (len(deriv_params), inv_covariance.shape[0]))
     for i, deriv_param in enumerate(deriv_params):
         deriv_vals_to_get = [data_param + '_' + deriv_param + '_deriv' for data_param in data_params]
         deriv_vector_dict = kcap_methods.get_values(mock_run = fiducial_run, vals_to_read = deriv_vals_to_get, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
@@ -26,14 +73,10 @@ def compute_fisher(fiducial_run, deriv_params, data_params, mocks_dir = None, mo
             deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_param+'_'+deriv_param+'_deriv'])
         
         deriv_matrix[i] += deriv_vector
+    fisher_matrix = np.dot(deriv_matrix, np.dot(inv_covariance, np.transpose(deriv_matrix)))
+    return fisher_matrix
 
-    # fisher_matrix = np.dot(deriv_matrix, np.dot(inv_covariance, np.transpose(deriv_matrix)))
-    # syminv_fisher_matrix = np.dot(deriv_matrix, np.dot(symmetrised_inv_covariance, np.transpose(deriv_matrix)))
-    # cholesky_fisher_matrix = np.dot(deriv_matrix, np.dot(cholesky_inv_covariance, np.transpose(deriv_matrix)))
-    eigen_fisher_matrix = np.dot(deriv_matrix, np.dot(eigen_inv_covariance, np.transpose(deriv_matrix)))
-    return eigen_fisher_matrix
-
-def regular_likelihood_posterior(sim_number, fiducial_run, data_params, params, mocks_dir = None, mocks_name = None, noisey_data = False):
+def regular_likelihood_posterior(sim_number, fiducial_run, data_params, params, cov_inv_method = "eigen", mocks_dir = None, mocks_name = None, noisey_data = False):
     """
     Calculates the regular posterior assuming Gaussian likelihood.
     """
@@ -41,8 +84,7 @@ def regular_likelihood_posterior(sim_number, fiducial_run, data_params, params, 
     gaus_post = np.zeros(sim_number)
     likelihood = np.zeros(sim_number)
     fid_vector = get_fiducial_vector(fiducial_run = fiducial_run, data_params = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    eigen_inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = "eigen", mocks_dir = mocks_dir, mocks_name = mocks_name)
-    # inv_cov = kcap_methods.get_inv_covariance(mock_run = fiducial_run, mocks_dir = mocks_dir, mocks_name = mocks_name) #we do this here just because it's parameter independent, so it's the same covariance for all parameter points
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = cov_inv_method, mocks_dir = mocks_dir, mocks_name = mocks_name)
 
     for i in range(sim_number):
         param_dict = kcap_methods.get_params(mock_run = i, vals_to_read = params, mocks_dir = mocks_dir, mocks_name = mocks_name)
@@ -59,7 +101,7 @@ def regular_likelihood_posterior(sim_number, fiducial_run, data_params, params, 
 
         data_diff = data_vector - fid_vector
         
-        gaus_post[i] += np.exp(-0.5 * np.dot(np.transpose(data_diff), np.dot(eigen_inv_covariance, data_diff)))
+        gaus_post[i] += np.exp(-0.5 * np.dot(np.transpose(data_diff), np.dot(inv_covariance, data_diff)))
         likelihood[i] += kcap_methods.get_likelihood(mock_run = i, like_name = "loglike_like", mocks_dir = mocks_dir, mocks_name = mocks_name)
     
     return thetas, gaus_post, likelihood
@@ -136,7 +178,7 @@ def score_compress(data_vector, fid_vector, deriv_matrix, inv_covariance, cov_de
         print("Non-Linear Score Compression Done!")
         return score
 
-def do_compression(sim_number, fiducial_run, data_run, deriv_params, data_params, theta_names, linear = True, mocks_dir = None, mocks_name = None, noisey_data = True):
+def do_compression(sim_number, fiducial_run, data_run, deriv_params, data_params, theta_names, linear = True, cov_inv_method = "eigen", mocks_dir = None, mocks_name = None, noisey_data = True):
     """
     Do compression, returning 3 arrays. 
     theta_names - expected in the full cosmosis naming chain, e.g. cosmological_parameters--omch2
@@ -148,8 +190,8 @@ def do_compression(sim_number, fiducial_run, data_run, deriv_params, data_params
     else:
         cov_deriv_tensor = None
     
-    eigen_inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = "eigen", mocks_dir = mocks_dir, mocks_name = mocks_name)
-    eigen_compressed_data = np.zeros(shape = (sim_number, len(deriv_params)))
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = cov_inv_method, mocks_dir = mocks_dir, mocks_name = mocks_name)
+    compressed_data = np.zeros(shape = (sim_number, len(deriv_params)))
     thetas = np.zeros(shape = (sim_number, len(deriv_params)))
 
     for i in range(sim_number):
@@ -162,18 +204,18 @@ def do_compression(sim_number, fiducial_run, data_run, deriv_params, data_params
             for data_param in data_params:
                 data_vector = np.append(data_vector, data_vector_dict[data_param])
             # Should now have a 1d datavector.
-        eigen_score = score_compress(data_vector = data_vector, fid_vector = fid_vector, deriv_matrix = deriv_matrix, inv_covariance = eigen_inv_covariance, cov_deriv_tensor = cov_deriv_tensor)
+        score = score_compress(data_vector = data_vector, fid_vector = fid_vector, deriv_matrix = deriv_matrix, inv_covariance = inv_covariance, cov_deriv_tensor = cov_deriv_tensor)
         
-        eigen_compressed_data[i] += eigen_score
+        compressed_data[i] += score
         
         theta = kcap_methods.get_params(mock_run = i, vals_to_read = theta_names, mocks_dir = mocks_dir, mocks_name = mocks_name)
         theta = np.array(list(theta.values()))
         thetas[i] += theta
         
-    eigen_fid_data = eigen_compressed_data[data_run]
+    fid_data = compressed_data[data_run]
     
     print("Compression finished!")
-    return eigen_compressed_data, thetas, eigen_fid_data
+    return compressed_data, thetas, fid_data
     
 def write_file(input_array, file_location, file_name):
     outfile = file_location + '/' + file_name + '.dat'    
@@ -186,145 +228,87 @@ def write_file(input_array, file_location, file_name):
     np.savetxt(outfile, input_array)
     print("File succesfully saved as %s" % str(outfile))
 
-def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_number, compressed_name = 'compressed_data', linear_compression = True, noisey_data = True):
+def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_number, compressed_name = 'compressed_data', cov_inv_method = 'eigen', linear_compression = True, noisey_data = True):
     file_loc = mocks_dir + '/' + compressed_name
-    eigen_compressed_data, thetas, eigen_fid_data = do_compression(sim_number = sim_number+1, fiducial_run = sim_number+1, data_run = sim_number,
+    compressed_data, thetas, fid_data = do_compression(sim_number = sim_number+1, fiducial_run = sim_number+1, data_run = sim_number,
                                                                     deriv_params = deriv_params, 
                                                                     data_params = data_params,
                                                                     theta_names = theta_names,
                                                                     linear = linear_compression, 
+                                                                    cov_inv_method = cov_inv_method,
                                                                     mocks_dir = mocks_dir,
                                                                     mocks_name = mocks_name,
                                                                     noisey_data = noisey_data)
 
-    eigen_fisher_matrix = compute_fisher(fiducial_run = sim_number+1, 
-                                        deriv_params = deriv_params, 
-                                        data_params = data_params, 
-                                        mocks_dir = mocks_dir,
-                                        mocks_name = mocks_name)
+    fisher_matrix = compute_fisher(fiducial_run = sim_number+1, 
+                                   deriv_params = deriv_params, 
+                                   data_params = data_params, 
+                                   cov_inv_method = cov_inv_method,
+                                   mocks_dir = mocks_dir,
+                                   mocks_name = mocks_name)
 
     write_file(input_array = thetas, file_location = file_loc, file_name = 'thetas')
-    write_file(input_array = eigen_compressed_data, file_location = file_loc, file_name = 'eigen_compressed_data')
-    write_file(input_array = eigen_fid_data, file_location = file_loc, file_name = 'eigen_fid_data')
-    write_file(input_array = eigen_fisher_matrix, file_location = file_loc, file_name = 'eigen_fisher_matrix')       
+    write_file(input_array = compressed_data, file_location = file_loc, file_name = 'compressed_score')
+    write_file(input_array = fid_data, file_location = file_loc, file_name = 'score_compressed_data')
+    write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')       
     
     thetas, post, likelihood = regular_likelihood_posterior(sim_number = sim_number+1, fiducial_run = sim_number+1, 
                                                 data_params = data_params, 
                                                 params = theta_names, 
+                                                cov_inv_method = cov_inv_method,
                                                 mocks_dir = mocks_dir,
                                                 mocks_name = mocks_name,
                                                 noisey_data = noisey_data)
     
-    write_file(input_array = post, file_location = file_loc, file_name = 'eigen_posterior')
-    write_file(input_array = likelihood, file_location = file_loc, file_name = 'eigen_likelihood')
+    write_file(input_array = post, file_location = file_loc, file_name = 'posterior')
+    write_file(input_array = likelihood, file_location = file_loc, file_name = 'likelihood')
 
 if __name__ == "__main__":    
-    # main(deriv_params = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
-    #      data_params = ['theory'], 
-    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
-    #      mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_15", 
-    #      mocks_name = "kids_1000_cosmology", 
-    #      sim_number = 4000,
-    #      compressed_name = 'compressed_data', 
-    #      linear_compression = True)   
+    # ['\sigma_8', '\omega_c', '\omega_b', 'A_{IA}', 'n_s', 'a_{halo}']
+    # fisher = compute_fisher(fiducial_run = 1, 
+    #                         deriv_params = ['cosmological_parameters--sigma_8', 
+    #                                         'cosmological_parameters--omch2',
+    #                                         'cosmological_parameters--ombh2', 
+    #                                         'intrinsic_alignment_parameters--a',
+    #                                         'cosmological_parameters--n_s',
+    #                                         'halo_model_parameters--a'], 
+    #                         data_params = ['theory'], 
+    #                         mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_mocks', 
+    #                         mocks_name = 'kids_1000_cosmology_data_noiseless_with_derivs')
     
-    # main(deriv_params = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'halo_model_parameters--a'], 
-    #      data_params = ['theory'], 
-    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'halo_model_parameters--a'], 
-    #      mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_17", 
-    #      mocks_name = "kids_1000_cosmology", 
-    #      sim_number = 4000,
-    #      compressed_name = 'compressed_data_new_derivs', 
-    #      linear_compression = True)  
+    # write_file(input_array = fisher, file_location = '/mnt/Node-Temp/cosmology/kids_deriv_tests/fisher_6d/6d_mocks', 
+    #            file_name = 'fisher_matrix') 
     
-    main(deriv_params = ['intrinsic_alignment_parameters--a'], 
+    main(deriv_params = ['cosmological_parameters--sigma_8', 
+                         'cosmological_parameters--omega_m',
+                         'intrinsic_alignment_parameters--a',
+                         'cosmological_parameters--n_s',
+                         'halo_model_parameters--a',
+                         'cosmological_parameters--h0',
+                         'cosmological_parameters--ombh2',
+                         'nofz_shifts--bias_1',
+                         'nofz_shifts--bias_2',
+                         'nofz_shifts--bias_3',
+                         'nofz_shifts--bias_4',
+                         'nofz_shifts--bias_5'], 
          data_params = ['theory'], 
-         theta_names = ['intrinsic_alignment_parameters--a'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_aia", 
+         theta_names = ['cosmological_parameters--sigma_8', 
+                        'cosmological_parameters--omega_m',
+                        'intrinsic_alignment_parameters--a',
+                        'cosmological_parameters--n_s',
+                        'halo_model_parameters--a',
+                        'cosmological_parameters--h0',
+                        'cosmological_parameters--ombh2',
+                        'nofz_shifts--bias_1',
+                        'nofz_shifts--bias_2',
+                        'nofz_shifts--bias_3',
+                        'nofz_shifts--bias_4',
+                        'nofz_shifts--bias_5'], 
+         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_25", 
          mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'a_ia', 
+         sim_number = 20000,
+         compressed_name = 'compressed_to_marginalise', 
+         cov_inv_method = 'eigen',
          linear_compression = True,
-         noisey_data = False) 
-    main(deriv_params = ['halo_model_parameters--a'], 
-         data_params = ['theory'], 
-         theta_names = ['halo_model_parameters--a'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_haloa", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'halo_a', 
-         linear_compression = True,
-         noisey_data = False) 
-    main(deriv_params = ['cosmological_parameters--n_s'], 
-         data_params = ['theory'], 
-         theta_names = ['cosmological_parameters--n_s'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_ns", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'n_s', 
-         linear_compression = True,
-         noisey_data = False) 
-    main(deriv_params = ['cosmological_parameters--omch2'], 
-         data_params = ['theory'], 
-         theta_names = ['cosmological_parameters--omch2'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_omch2", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'omch2', 
-         linear_compression = True,
-         noisey_data = False) 
-    main(deriv_params = ['cosmological_parameters--ombh2'], 
-         data_params = ['theory'], 
-         theta_names = ['cosmological_parameters--ombh2'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_ombh2", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'ombh2', 
-         linear_compression = True,
-         noisey_data = False) 
-    main(deriv_params = ['cosmological_parameters--sigma_8'], 
-         data_params = ['theory'], 
-         theta_names = ['cosmological_parameters--sigma_8'], 
-         mocks_dir = "/mnt/Node-Temp/cosmology/kcap_output/deriv_test/varying_sigma_8", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 1200,
-         compressed_name = 'sigma_8', 
-         linear_compression = True,
-         noisey_data = False) 
+         noisey_data = True)
     
-    # main(deriv_params = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
-    #      data_params = ['theory'], 
-    #      theta_names = ['cosmological_parameters--omega_m', 'cosmological_parameters--sigma_8',
-    #                      'intrinsic_alignment_parameters--a', 'cosmological_parameters--n_s', 
-    #                      'cosmological_parameters--h0', 'halo_model_parameters--a'], 
-    #      mocks_dir = "/mnt/Node-Data/cosmology/kcap_output/kids_1000_mocks_trial_15", 
-    #      mocks_name = "kids_1000_cosmology", 
-    #      sim_number = 4000,
-    #      compressed_name = 'compressed_data_binned', 
-    #      linear_compression = True)   
-
-    # data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned']
-    # mocks_dir = '/home/ruyi/cosmology/kcap_output/kids_deriv_test'
-    # mocks_name = 'domega_m_fixed_s_8'
-    # mocks_name = 'domega_m_fixed_sigma_8'
-    # mocks_name = 'dsigma_8_fixed_omega_m'
-    # mocks_name = 'ds_8_fixed_omega_m'
-    
-    # data_vector = get_fiducial_deriv(fiducial_run = 0, deriv_params = ['s_8'], data_params = ['shear_xi_plus_binned', 'shear_xi_minus_binned'], mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = None)
-    # data_vector = data_vector.flatten()
-    # data_vector_dict = kcap_methods.get_thetas(mock_run = 0, vals_to_read = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name) # The datavector stored as a dict of 2 flattened numpy arrays
-    # data_vector = np.array([])
-    # for data_param in data_params:
-    #     data_vector = np.append(data_vector, data_vector_dict[data_param])
-    
-    # write_file(input_array = data_vector, file_location = mocks_dir + '/', file_name = 'thetas')
