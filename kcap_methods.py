@@ -1055,6 +1055,37 @@ def run_omega_m_deriv(mock_run, params_varied, vals_to_diff, mocks_dir = None, m
         print("Not all values found, continuing script...")
         kcap_run.first_omega_m_deriv(params_varied)
 
+def calc_inv_covariance(covariance, which_cov = "eigen"):
+    if which_cov == "symmetrised":
+        # Averaging the inverse covariance
+        inv_covariance = np.linalg.inv(covariance)
+        inv_covariance = (inv_covariance + inv_covariance.T)/2
+    elif which_cov == "cholesky":
+        # Cholesky method for calculating the inverse covariance
+        cholesky_decom = np.linalg.cholesky(covariance)
+        identity = np.identity(len(covariance))
+        y = np.linalg.solve(cholesky_decom, identity)
+        inv_covariance = np.linalg.solve(cholesky_decom.T, y)
+    elif which_cov == "eigen":
+        # Eigenvalue decomposition method of calculating the inverse covariance
+        eigenvals, eigenvectors = np.linalg.eig(covariance)
+        inv_eigenvals = np.zeros(shape = (270,270))
+        for i, val in enumerate(eigenvals):
+            if val > 0.:
+                inv_eigenvals[i][i] += 1/val
+            else:
+                pass
+        inv_covariance = np.dot(eigenvectors, np.dot(inv_eigenvals, eigenvectors.T))
+    elif which_cov == "suppressed":
+        for i, cov_slice in enumerate(covariance):
+            for j, val in enumerate(cov_slice):
+                covariance[i][j] = val * 0.9 ** (abs(i-j))
+        inv_covariance = np.inv(covariance)
+    else:
+        inv_covariance = np.linalg.inv(covariance)
+        
+    return inv_covariance
+
 def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None, bin_order = None):
     values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
     values_read = values_method.read_vals(vals_to_read = vals_to_read)
@@ -1081,38 +1112,9 @@ def get_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_n
     return covariance
 
 def get_inv_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_name = None):
-    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)    
-    if which_cov == "symmetrised":
-        # Averaging the inverse covariance
-        inv_covariance = values_method.read_inv_covariance(which_cov = "covariance")
-        inv_covariance = (inv_covariance + inv_covariance.T)/2
-    elif which_cov == "cholesky":
-        # Cholesky method for calculating the inverse covariance
-        covariance = values_method.read_covariance(which_cov = "covariance")
-        cholesky_decom = np.linalg.cholesky(covariance)
-        identity = np.identity(len(covariance))
-        y = np.linalg.solve(cholesky_decom, identity)
-        inv_covariance = np.linalg.solve(cholesky_decom.T, y)
-    elif which_cov == "eigen":
-        # Eigenvalue decomposition method of calculating the inverse covariance
-        covariance = values_method.read_covariance(which_cov = "covariance")
-        eigenvals, eigenvectors = np.linalg.eig(covariance)
-        inv_eigenvals = np.zeros(shape = (270,270))
-        for i, val in enumerate(eigenvals):
-            if val > 0.:
-                inv_eigenvals[i][i] += 1/val
-            else:
-                pass
-        inv_covariance = np.dot(eigenvectors, np.dot(inv_eigenvals, eigenvectors.T))
-    elif which_cov == "suppressed":
-        covariance = values_method.read_covariance(which_cov = "covariance")
-        for i, cov_slice in enumerate(covariance):
-            for j, val in enumerate(cov_slice):
-                covariance[i][j] = val * 0.9 ** (abs(i-j))
-        inv_covariance = np.inv(covariance)
-    else:
-        inv_covariance = values_method.read_inv_covariance(which_cov = which_cov)
-        
+    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
+    covariance = values_method.read_covariance(which_cov = "covariance")
+    inv_covariance = calc_inv_covariance(covariance, which_cov)
     return inv_covariance
 
 def get_noisey_data(mock_run, mocks_dir = None, mocks_name = None):
