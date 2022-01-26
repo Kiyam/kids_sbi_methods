@@ -291,7 +291,7 @@ class kcap_deriv:
             elif len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*.tgz')) == stencil_pts - 1:
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(15)
+        time.sleep(40)
 
     def copy_deriv_vals_to_mocks(self, step_size, abs_step_size, stencil_pts = 5):
         if len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*/')) == stencil_pts - 1:
@@ -1254,15 +1254,14 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 100, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/varied_datavectors/grid',
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 2000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_33/hypercube_2000',
                    mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
     # run_kcap_deriv(mock_run = 0, 
-    #             param_to_vary = "nofz_shifts--bias_5",
+    #             param_to_vary = "cosmological_parameters--omch2",
     #             params_to_fix = ["cosmological_parameters--sigma_8",
-    #                              "cosmological_parameters--omch2", 
     #                              "cosmological_parameters--n_s", 
     #                              "cosmological_parameters--ombh2",
     #                              "halo_model_parameters--a",
@@ -1271,33 +1270,13 @@ if __name__ == "__main__":
     #                              "nofz_shifts--bias_1",
     #                              "nofz_shifts--bias_2",
     #                              "nofz_shifts--bias_3",
-    #                              "nofz_shifts--bias_4"],
+    #                              "nofz_shifts--bias_4",
+    #                              "nofz_shifts--bias_5"],
     #             vals_to_diff = ["theory"],
-    #             step_size = 0.0003,
+    #             step_size = 0.01,
     #             stencil_pts = 5,
     #             mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
     #             mocks_name = 'kids_1000_cosmology_fiducial',
-    #             cleanup = 2
-    #             )
-
-    # run_kcap_deriv(mock_run = 0, 
-    #             param_to_vary = "nofz_shifts--bias_5",
-    #             params_to_fix = ["cosmological_parameters--sigma_8",
-    #                              "cosmological_parameters--omch2", 
-    #                              "cosmological_parameters--n_s", 
-    #                              "cosmological_parameters--ombh2",
-    #                              "halo_model_parameters--a",
-    #                              "cosmological_parameters--h0",
-    #                              "intrinsic_alignment_parameters--a",
-    #                              "nofz_shifts--bias_1",
-    #                              "nofz_shifts--bias_2",
-    #                              "nofz_shifts--bias_3",
-    #                              "nofz_shifts--bias_4"],
-    #             vals_to_diff = ["theory"],
-    #             step_size = 0.0003,
-    #             stencil_pts = 5,
-    #             mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-    #             mocks_name = 'kids_1000_cosmology_noiseless',
     #             cleanup = 2
     #             )
 
