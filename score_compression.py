@@ -147,6 +147,12 @@ def main(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_numb
     write_file(input_array = posterior, file_location = file_loc, file_name = 'posterior')
     write_file(input_array = likelihood, file_location = file_loc, file_name = 'likelihood')
 
+def calculate_fisher(data_params, deriv_params, fiducial_mocks_dir, fiducial_mocks_name, fiducial_run, file_loc, cov_inv_method = "eigen"):
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = cov_inv_method, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    fisher_matrix = calc_fisher(inv_covariance = inv_covariance , deriv_matrix = deriv_matrix)
+    write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
+
 def grid_run_param_check(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_number,
                          fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
                          data_mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/varied_datavectors/grid', data_mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr', data_runs = 100,
@@ -243,6 +249,24 @@ if __name__ == "__main__":
     # write_file(input_array = fisher, file_location = '/mnt/Node-Temp/cosmology/kcap_output/kids_1000_mocks_trial_28/fisher', 
     #            file_name = 'fisher_matrix_omega_m') 
     
+    # calculate_fisher(data_params = ['theory'], 
+    #                  deriv_params = ['cosmological_parameters--sigma_8', 
+    #                                  'cosmological_parameters--omch2',
+    #                                  'intrinsic_alignment_parameters--a',
+    #                                  'cosmological_parameters--n_s',
+    #                                  'halo_model_parameters--a',
+    #                                  'cosmological_parameters--h0',
+    #                                  'cosmological_parameters--ombh2',
+    #                                  'nofz_shifts--uncorr_bias_1',
+    #                                  'nofz_shifts--uncorr_bias_2',
+    #                                  'nofz_shifts--uncorr_bias_3',
+    #                                  'nofz_shifts--uncorr_bias_4',
+    #                                  'nofz_shifts--uncorr_bias_5'], 
+    #                  fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', 
+    #                  fiducial_mocks_name = 'kids_1000_cosmology_fiducial', 
+    #                  fiducial_run = 0, 
+    #                  file_loc = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks')
+
     main(deriv_params = ['cosmological_parameters--sigma_8', 
                          'cosmological_parameters--omch2',
                          'intrinsic_alignment_parameters--a',
@@ -268,10 +292,10 @@ if __name__ == "__main__":
                         'nofz_shifts--bias_3',
                         'nofz_shifts--bias_4',
                         'nofz_shifts--bias_5'], 
-         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_33/hypercube_2000", 
+         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_33/hypercube_1500_fisher_1000_iterations", 
          mocks_name = "kids_1000_cosmology_with_nz_shifts_corr", 
-         sim_number = 2000,
-         compressed_name = 'compressed_data_2000')
+         sim_number = 1500,
+         compressed_name = 'compressed_data_1500_fisher_1000_iterations')
 
     # grid_run_param_check(deriv_params = ['cosmological_parameters--sigma_8', 
     #                                      'cosmological_parameters--omch2',
