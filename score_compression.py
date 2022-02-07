@@ -54,6 +54,14 @@ def nuisance_hardened_mle(fisher, score, nuisance_index = [-1]):
     
     return marginalised_score, marginalised_inv_fisher
 
+def calc_cholesky(covariance, array, method = "corr"):
+    L = np.linalg.cholesky(covariance) 
+    if method == "corr":
+        return np.dot(L, array)
+    else:
+        inv_L = np.linalg.inv(L)
+        return np.dot(inv_L, array))
+
 def calc_fisher(inv_covariance, deriv_matrix):
     """
     Computes the fisher matrix based on the params set, 
