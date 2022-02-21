@@ -60,7 +60,7 @@ def calc_cholesky(covariance, array, method = "corr"):
         return np.dot(L, array)
     else:
         inv_L = np.linalg.inv(L)
-        return np.dot(inv_L, array))
+        return np.dot(inv_L, array)
 
 def calc_fisher(inv_covariance, deriv_matrix):
     """
@@ -300,10 +300,10 @@ if __name__ == "__main__":
                         'nofz_shifts--bias_3',
                         'nofz_shifts--bias_4',
                         'nofz_shifts--bias_5'], 
-         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_33/hypercube_1500_fisher_1000_iterations", 
+         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_38/sim_num_test_16000", 
          mocks_name = "kids_1000_cosmology_with_nz_shifts_corr", 
-         sim_number = 1500,
-         compressed_name = 'compressed_data_1500_fisher_1000_iterations')
+         sim_number = 16000,
+         compressed_name = 'compressed_data_16000_fisher')
 
     # grid_run_param_check(deriv_params = ['cosmological_parameters--sigma_8', 
     #                                      'cosmological_parameters--omch2',

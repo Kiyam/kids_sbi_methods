@@ -1254,7 +1254,7 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 2000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_33/hypercube_1500_fisher_1000_iterations',
+    extract_and_cleanup(mock_run_start = 2149, num_mock_runs = 16000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_38/sim_num_test_16000',
                    mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
