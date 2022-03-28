@@ -1212,6 +1212,9 @@ def cleanup_folders(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name 
                    folders_to_keep = ["shear_xi_minus_binned", 
                                       "shear_xi_plus_binned", 
                                       "cosmological_parameters",
+                                      "shear_cl",
+                                      "shear_cl_gi",
+                                      "shear_cl_ii",
                                       "intrinsic_alignment_parameters",
                                       "growth_parameters",
                                       "bias_parameters",
@@ -1233,20 +1236,24 @@ def cleanup_folders(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name 
     print("Enjoy that sweet sweet disk space!")
 
 def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
-                   folders_to_keep = ["shear_xi_minus_binned", 
-                                      "shear_xi_plus_binned", 
-                                      "cosmological_parameters",
+                   folders_to_keep = ["cosmological_parameters",
+                                    #    "shear_xi_minus_binned", 
+                                    #   "shear_xi_plus_binned", 
+                                      "bandpowers",
+                                      "shear_cl",
+                                      "shear_cl_gi",
+                                      "shear_cl_ii",
                                       "intrinsic_alignment_parameters",
                                       "growth_parameters",
                                       "bias_parameters",
                                       "halo_model_parameters",
-                                      "likelihoods",
-                                      "theory_data_covariance",
-                                      "delta_z_out",
+                                    #   "likelihoods",
+                                    #   "theory_data_covariance",
+                                    #   "delta_z_out",
                                       "nofz_shifts",
                                       "nz_source",
                                       "priors"],
-                   files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"]):
+                   files_to_remove = []): #"theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"
     print("Initiating unzip and cleanup afterwards... ")
     clean_method = organise_kcap_output(mock_run_start = mock_run_start, num_mock_runs = num_mock_runs, mocks_dir = mocks_dir, mocks_name = mocks_name, 
                                         folders_to_keep = folders_to_keep, files_to_remove = files_to_remove)
@@ -1254,8 +1261,8 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    extract_and_cleanup(mock_run_start = 2149, num_mock_runs = 16000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_38/sim_num_test_16000',
-                   mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 40, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_02',
+                   mocks_name = 'kids_1000_cosmology')
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
