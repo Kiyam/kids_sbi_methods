@@ -356,18 +356,19 @@ class kcap_deriv:
     
     def cleanup_dx(self, stencil_pts = 5):
         for deriv_vals in self.vals_to_diff:
+            deriv_head, deriv_name = deriv_vals.split(sep = "--")
             if stencil_pts >= 3:
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'-1dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'+1dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'-1dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'+1dx/')
             if stencil_pts >= 5:
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'-2dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'+2dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'-2dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'+2dx/')
             if stencil_pts >= 7:
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'-3dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'+3dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'-3dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'+3dx/')
             if stencil_pts >= 9:
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'-4dx/')
-                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_vals+'_'+self.param_to_vary+'+4dx/') 
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'-4dx/')
+                shutil.rmtree(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_'+self.param_to_vary+'+4dx/') 
 
     def first_deriv(self, abs_step_size, stencil_pts = 5):
         """
@@ -512,7 +513,6 @@ class kcap_deriv:
                     h0_deriv_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_cosmological_parameters--h0_deriv/'+deriv_name+'.txt'
                     with open(h0_deriv_file, 'r') as flx:
                         h0_deriv = np.loadtxt(flx)
-            else:
                 
             try:
                 omch2_component = omch_deriv * (h**2)
