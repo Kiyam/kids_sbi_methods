@@ -531,9 +531,6 @@ class kcap_deriv:
                 
             print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (deriv_vals))
 
-            # if "covariance" or "theory" in deriv_vals:
-            #     deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance_cosmological_parameters--omega_m_deriv/'
-            # else:
             deriv_dir_path = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+deriv_head+'_cosmological_parameters--omega_m_deriv/'
 
             if not os.path.exists(os.path.dirname(deriv_dir_path)):
@@ -817,11 +814,13 @@ class organise_kcap_output(kcap_deriv):
         print("All .tgz files removed!")
 
 class read_kcap_values(kcap_deriv):
-    def __init__(self, mock_run, mocks_dir = None, mocks_name = None, 
+    def __init__(self, mock_run, mocks_dir = None, mocks_name = None, is_binned = False,
                         bin_order = None):
 
         env = Env()
         env.read_env()
+
+        self.is_binned = is_binned #Sets whether derivatives should hunt for binned data or not
 
         # mocks_dir settings
         if mocks_dir == None:
@@ -856,16 +855,7 @@ class read_kcap_values(kcap_deriv):
 
         vals_dict = {}
         for val_names in vals_to_read:
-            if "theory" in val_names:
-                if os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/theory.txt'):
-                    vals_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/theory.txt'
-                    vals_array = np.genfromtxt(vals_file, comments = '#')
-                elif "theory" == val_names:
-                    vals_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/theory_data_covariance/theory.txt'
-                    vals_array = np.genfromtxt(vals_file, comments = '#')
-                else:
-                    raise Exception("Badly defined deriv parameter name %s" % val_names)
-            else:
+            if self.is_binned == True:
                 files_list = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_names+'/bin*.txt')
                 bin_names = [bin_name.split("/")[-1].replace(".txt", "") for bin_name in files_list]
 
@@ -878,6 +868,13 @@ class read_kcap_values(kcap_deriv):
                 vals_array = np.array([])
                 for bin_name in self.bin_order:
                     vals_array = np.append(vals_array, bin_vals_dict[bin_name])
+            else:
+                val_folder, val_name = val_names.rsplit("--", 1)
+                if os.path.exists(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_folder+'/'+val_name+'.txt'):
+                    vals_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+val_folder+'/'+val_name+'.txt'
+                    vals_array = np.genfromtxt(vals_file, comments = '#')
+                else:
+                    raise Exception("Badly defined deriv parameter name %s" % val_names)               
                 
             vals_dict[val_names] = vals_array
         
@@ -930,28 +927,14 @@ class read_kcap_values(kcap_deriv):
             cov_folder = "theory_data_covariance_" + which_theory + "_deriv"
 
         theory_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/theory.txt'
-        theory = np.loadtxt(theory_file, skiprows = 1)
+        theory = np.genfromtxt(theory_file, comments = '#')
         return theory
 
-    def read_covariance(self, which_cov = "covariance"):
-        if which_cov == "covariance":
-            cov_folder = "theory_data_covariance"
-        else:
-            cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
-
-        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/covariance.txt'
-        covariance = np.loadtxt(covariance_file, skiprows = 1)
+    def read_covariance(self, which_cov = "theory_data_covariance--covariance"):
+        cov_folder, cov_file = which_cov.split(sep="--")
+        covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/'+cov_file+'.txt'
+        covariance = np.genfromtxt(covariance_file, comments = '#')
         return covariance
-    
-    def read_inv_covariance(self, which_cov = "covariance"):
-        if which_cov == "covariance":
-            cov_folder = "theory_data_covariance"
-        else:
-            cov_folder = "theory_data_covariance_" + which_cov + "_deriv"
-
-        inv_covariance_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/'+cov_folder+'/inv_covariance.txt'
-        inv_covariance = np.loadtxt(inv_covariance_file, skiprows = 1)
-        return inv_covariance
     
     def read_likelihood(self, like_name):
         like_val = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/likelihoods/values.txt'
@@ -1065,14 +1048,14 @@ def get_theory(mock_run, which_cov = "theory", mocks_dir = None, mocks_name = No
     covariance = values_method.read_theory(which_cov = which_cov)
     return covariance
 
-def get_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_name = None):
+def get_covariance(mock_run, which_cov = "theory_data_covariance--covariance", mocks_dir = None, mocks_name = None):
     values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
     covariance = values_method.read_covariance(which_cov = which_cov)
     return covariance
 
-def get_inv_covariance(mock_run, which_cov = "covariance", mocks_dir = None, mocks_name = None):
+def get_inv_covariance(mock_run, which_cov = "theory_data_covariance--covariance", mocks_dir = None, mocks_name = None):
     values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    covariance = values_method.read_covariance(which_cov = "covariance")
+    covariance = values_method.read_covariance(which_cov = which_cov)
     inv_covariance = calc_inv_covariance(covariance, which_cov)
     return inv_covariance
 
@@ -1221,29 +1204,29 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    # extract_and_cleanup(mock_run_start = 0, num_mock_runs = 40, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_02',
-    #                mocks_name = 'kids_1000_cosmology')
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 4000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_01',
+                   mocks_name = 'kids_1000_cosmology')
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
-    run_kcap_deriv(mock_run = 0, 
-                param_to_vary = "cosmological_parameters--omch2",
-                params_to_fix = ["cosmological_parameters--sigma_8",
-                                 "cosmological_parameters--n_s", 
-                                 "cosmological_parameters--ombh2",
-                                 "halo_model_parameters--a",
-                                 "cosmological_parameters--h0",
-                                 "intrinsic_alignment_parameters--a"],
-                vals_to_diff = ["bandpowers--theory_bandpower_cls"],
-                step_size = 0.01,
-                stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
-                cleanup = 0,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
-                )
+    # run_kcap_deriv(mock_run = 0, 
+    #             param_to_vary = "cosmological_parameters--omch2",
+    #             params_to_fix = ["cosmological_parameters--sigma_8",
+    #                              "cosmological_parameters--n_s", 
+    #                              "cosmological_parameters--ombh2",
+    #                              "halo_model_parameters--a",
+    #                              "cosmological_parameters--h0",
+    #                              "intrinsic_alignment_parameters--a"],
+    #             vals_to_diff = ["bandpowers--theory_bandpower_cls"],
+    #             step_size = 0.01,
+    #             stencil_pts = 5,
+    #             mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+    #             mocks_name = 'kids_1000_cosmology_cl_fiducial',
+    #             cleanup = 0,
+    #             deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
+    #             deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
+    #             deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+    #             )
 
     # run_omega_m_deriv(mock_run = 0, 
     #                params_varied = ["cosmological_parameters--omch2"],
