@@ -1,0 +1,2 @@
+cosmological_parameters--omch2_relative_stepsize=0.01
+cosmological_parameters--omch2_absolute_stepsize=0.0012
