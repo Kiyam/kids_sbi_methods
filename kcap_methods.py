@@ -10,12 +10,11 @@ import re
 import time
 from environs import Env
 
-#NOTE - The params that can be varied in the future are h, ns, A_IA, A_bary, sigma_z, sigma_c, sigma_8
-
 class kcap_deriv:
     def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff,
                        is_binned = False, is_covariance = False, mocks_dir = None, mocks_name = None,
-                       deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None):
+                       deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None,
+                       sbatch_file = None):
         """
         Gets variable from .env file
         """
@@ -27,6 +26,8 @@ class kcap_deriv:
 
         self.is_binned = is_binned #Sets whether derivatives should hunt for binned data or not
         self.is_covariance = is_covariance #Sets whether it's a covariance derivative or not
+
+        self.sbatch_file = sbatch_file
 
         # mocks_dir settings
         if mocks_dir == None:
@@ -121,6 +122,7 @@ class kcap_deriv:
         """
         if option == "mocks":
             with tarfile.open(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run+'.tgz', 'r:gz') as kcap_tar:
+                print("Extracting file...")
                 kcap_tar.extractall(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+mock_run)
                 kcap_tar.close()
                 print("Mock run extracted is: %s" % mock_run)
@@ -246,7 +248,7 @@ class kcap_deriv:
         if mpi_opt == True:
             subprocess.run(["mpirun", "-n" , "12", "--use-hwthread-cpus", "cosmosis", "--mpi", self.kids_deriv_ini_file])
         elif cluster == True:
-            subprocess.run(["sbatch", "/share/splinter/klin/slurm/slurm_kcap_derivs.sh"])
+            subprocess.run(["sbatch", self.sbatch_file])
         elif mpi_opt == False:
             subprocess.run(["cosmosis", self.kids_deriv_ini_file])
         else: 
@@ -256,7 +258,7 @@ class kcap_deriv:
         start_time = time.time()
         elapsed = time.time() - start_time
         finished = False
-        while elapsed <= 3600. and finished != True:
+        while elapsed <= 86400. and finished != True:
             if len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*.tgz')) < stencil_pts - 1:
                 time.sleep(15)
             elif len(glob.glob(self.kids_deriv_dir+'/'+self.kids_deriv_root_name+'_*.tgz')) == stencil_pts - 1:
@@ -766,7 +768,7 @@ class organise_kcap_output(kcap_deriv):
                 self.delete_unwanted(mock_run)
                 self.delete_mock_tgz(mock_run)
             except:
-                print("Mock %s run doesn't, skipping and writing run to file" % (mock_run))
+                print("Mock %s run doesn't exist, skipping and writing run to file" % (mock_run))
                 with open(self.kids_mocks_dir + '/missing_runs.txt', 'a') as f:
                     f.write(str(mock_run) + '\n')
 
@@ -949,7 +951,8 @@ class read_kcap_values(kcap_deriv):
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, stencil_pts, 
                    mocks_dir = None, mocks_name = None, cleanup = 2,
-                   deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None):
+                   deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None,
+                   sbatch_file = None):
     """
     Cleanup == 2 means cleaning everything, cleanup = 1 means only cleaning up the temp deriv folder but keeps the dx values
     """
@@ -963,7 +966,8 @@ def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_si
                           deriv_name = deriv_name, 
                           deriv_ini_file = deriv_ini_file, 
                           deriv_values_file = deriv_values_file, 
-                          deriv_values_list_file = deriv_values_list_file)
+                          deriv_values_list_file = deriv_values_list_file,
+                          sbatch_file = sbatch_file)
     check = kcap_run.check_existing_derivs()
     if check is True:
         print("All files found for these parameters, skipping this particular deriv run")
@@ -1186,8 +1190,11 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
                                     #   "shear_xi_plus_binned", 
                                       "bandpowers",
                                       "shear_cl",
-                                      "shear_cl_gi",
-                                      "shear_cl_ii",
+                                    #   "shear_cl_gi",
+                                      "shear_pcl",
+                                      "shear_cl_noise",
+                                      "shear_rec_cl",
+                                    #   "shear_cl_ii",
                                       "intrinsic_alignment_parameters",
                                       "growth_parameters",
                                       "bias_parameters",
@@ -1206,8 +1213,8 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":
-    # extract_and_cleanup(mock_run_start = 37, num_mock_runs = 4000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_01',
-    #                mocks_name = 'kids_1000_cosmology')
+    # extract_and_cleanup(mock_run_start = 0, num_mock_runs = 1060, mocks_dir = '/share/data1/klin/kcap_out/kids_glass/hypercube_trial_01',
+    #                mocks_name = 'glass_22_hyper_2000')
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
@@ -1222,12 +1229,12 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
     
     run_kcap_deriv(mock_run = 0, 
@@ -1241,12 +1248,12 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
     
     run_kcap_deriv(mock_run = 0, 
@@ -1260,13 +1267,14 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
+
     run_kcap_deriv(mock_run = 0, 
                 param_to_vary = "cosmological_parameters--ombh2",
                 params_to_fix = ["cosmological_parameters--sigma_8",
@@ -1278,12 +1286,12 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
     
     run_kcap_deriv(mock_run = 0, 
@@ -1297,12 +1305,12 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
 
     run_kcap_deriv(mock_run = 0, 
@@ -1316,32 +1324,32 @@ if __name__ == "__main__":
                 vals_to_diff = ["bandpowers--theory_bandpower_cls"],
                 step_size = 0.01,
                 stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
+                mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+                mocks_name = 'glass_fiducial',
                 cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/glass_deriv_values_list.ini'
                 )
 
-    run_kcap_deriv(mock_run = 0, 
-                param_to_vary = "intrinsic_alignment_parameters--a",
-                params_to_fix = ["cosmological_parameters--sigma_8",
-                                 "cosmological_parameters--n_s", 
-                                 "cosmological_parameters--ombh2",
-                                 "halo_model_parameters--a",
-                                 "cosmological_parameters--h0",
-                                 "cosmological_parameters--omch2"],
-                vals_to_diff = ["bandpowers--theory_bandpower_cls"],
-                step_size = 0.01,
-                stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
-                mocks_name = 'kids_1000_cosmology_cl_fiducial',
-                cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
-                )
+    # run_kcap_deriv(mock_run = 0, 
+    #             param_to_vary = "intrinsic_alignment_parameters--a",
+    #             params_to_fix = ["cosmological_parameters--sigma_8",
+    #                              "cosmological_parameters--n_s", 
+    #                              "cosmological_parameters--ombh2",
+    #                              "halo_model_parameters--a",
+    #                              "cosmological_parameters--h0",
+    #                              "cosmological_parameters--omch2"],
+    #             vals_to_diff = ["bandpowers--theory_bandpower_cls"],
+    #             step_size = 0.01,
+    #             stencil_pts = 5,
+    #             mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+    #             mocks_name = 'kids_1000_cosmology_cl_fiducial',
+    #             cleanup = 2,
+    #             deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', 
+    #             deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
+    #             deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini'
+    #             )
 
     # run_omega_m_deriv(mock_run = 0, 
     #                params_varied = ["cosmological_parameters--omch2"],

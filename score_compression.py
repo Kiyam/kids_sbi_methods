@@ -196,21 +196,21 @@ def grid_run_param_check(deriv_params, data_params, theta_names, mocks_dir, mock
         write_file(input_array = posterior, file_location = file_loc, file_name = 'posterior')
         write_file(input_array = likelihood, file_location = file_loc, file_name = 'likelihood')
 
-def cov_varied_check(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_number, covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances/*", 
+def cov_varied_check(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, mocks_name, sim_number, covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances/*", 
                      fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
                      data_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', data_mocks_name = 'kids_1000_cosmology_noiseless', data_run = 0, 
                      compressed_name = 'varied_covariances', cov_inv_method = 'eigen', noisey_data = True):
 
     covariance_files = glob.glob(covariance_file_paths)
 
-    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = deriv_data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
     fid_vector = kcap_methods.get_single_data_vector(mock_run = fiducial_run, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
 
     data_vector = kcap_methods.get_single_data_vector(mock_run = data_run, data_params = data_params, mocks_dir = data_mocks_dir, mocks_name = data_mocks_name)
     data_theta = np.array(list(kcap_methods.get_params(mock_run = data_run, vals_to_read = theta_names, mocks_dir = data_mocks_dir, mocks_name = data_mocks_name).values()))
 
     sim_thetas = kcap_methods.get_sim_batch_thetas(sim_number = sim_number, theta_names = theta_names, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    sim_data_vectors = kcap_methods.get_sim_batch_data_vectors(sim_number, data_vector_length = 270, mocks_dir = mocks_dir, mocks_name = mocks_name, noisey_data = noisey_data)
+    sim_data_vectors = kcap_methods.get_sim_batch_data_vectors(sim_number, data_params = data_params, data_vector_length = len(data_vector), mocks_dir = mocks_dir, mocks_name = mocks_name)
     
     for file in covariance_files:
         covariance = np.genfromtxt(file)
@@ -275,49 +275,29 @@ if __name__ == "__main__":
     #                  fiducial_run = 0, 
     #                  file_loc = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks')
 
-    # main(deriv_params = ['cosmological_parameters--sigma_8', 
-    #                      'cosmological_parameters--omch2',
-    #                      'intrinsic_alignment_parameters--a',
-    #                      'cosmological_parameters--n_s',
-    #                      'halo_model_parameters--a',
-    #                      'cosmological_parameters--h0',
-    #                      'cosmological_parameters--ombh2'], 
-    #      data_params = ['bandpowers--noisey_bandpower_cls'], 
-    #      theta_names = ['cosmological_parameters--sigma_8', 
-    #                     'cosmological_parameters--omch2',
-    #                     'intrinsic_alignment_parameters--a',
-    #                     'cosmological_parameters--n_s',
-    #                     'halo_model_parameters--a',
-    #                     'cosmological_parameters--h0',
-    #                     'cosmological_parameters--ombh2'], 
-    #      mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_01", 
-    #      mocks_name = "kids_1000_cosmology", 
-    #      sim_number = 4000,
-    #      compressed_name = 'cl_compressed_data_4000')
-
     main(deriv_params = ['cosmological_parameters--sigma_8', 
                          'cosmological_parameters--omch2',
-                         'intrinsic_alignment_parameters--a',
                          'cosmological_parameters--n_s',
                          'halo_model_parameters--a',
                          'cosmological_parameters--h0',
                          'cosmological_parameters--ombh2'], 
-         data_params = ['bandpowers--noisey_bandpower_cls'], 
+         data_params = ['bandpowers--theory_bandpower_cls'], 
          deriv_data_params = ['bandpowers--theory_bandpower_cls'],
          theta_names = ['cosmological_parameters--sigma_8', 
                         'cosmological_parameters--omch2',
-                        'intrinsic_alignment_parameters--a',
                         'cosmological_parameters--n_s',
                         'halo_model_parameters--a',
                         'cosmological_parameters--h0',
                         'cosmological_parameters--ombh2'], 
-         fiducial_mocks_name = 'kids_1000_cosmology_cl_fiducial',
-         data_mocks_name  = 'kids_1000_cosmology_cl_data',
-         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/cl_trial_01", 
-         mocks_name = "kids_1000_cosmology", 
-         sim_number = 4000,
-         compressed_name = 'cl_compressed_data_4000',
-         which_cov = 'bandpowers--theory_cov')
+         fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+         fiducial_mocks_name = 'glass_fiducial',
+         data_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+         data_mocks_name  = 'glass_data',
+         mocks_dir = "/share/data1/klin/kcap_out/kids_glass/hypercube_trial_01", 
+         mocks_name = "glass_22_hyper_2000", 
+         sim_number = 1056,
+         compressed_name = 'glass_compressed_data',
+         which_cov = 'bandpowers--glass_theory_cov')
 
     # grid_run_param_check(deriv_params = ['cosmological_parameters--sigma_8', 
     #                                      'cosmological_parameters--omch2'], 
@@ -343,7 +323,8 @@ if __name__ == "__main__":
     #                                  'nofz_shifts--bias_3',
     #                                  'nofz_shifts--bias_4',
     #                                  'nofz_shifts--bias_5'], 
-    #                  data_params = ['theory'],
+    #                  data_params = ['theory_data_covariance--noise_mean'],
+    #                  deriv_data_params = ['theory_data_covariance--theory'],
     #                  theta_names = ['cosmological_parameters--sigma_8', 
     #                                 'cosmological_parameters--omch2',
     #                                 'intrinsic_alignment_parameters--a',
@@ -356,10 +337,10 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'], 
-    #                  mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_31/hypercube", 
+    #                  mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_38/sim_num_test_16000", 
     #                  mocks_name = "kids_1000_cosmology_with_nz_shifts_corr",
-    #                  sim_number = 4000,
-    #                  covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances_wishart_batch/*",
+    #                  sim_number = 16000,
+    #                  covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances/*",
     #                  fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
     #                  data_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', data_mocks_name = 'kids_1000_cosmology_noiseless', data_run = 0,
     #                  compressed_name = 'compressed_with_varied_covariances_repeated', cov_inv_method = 'eigen', noisey_data = True)
