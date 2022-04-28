@@ -1,0 +1,8 @@
+is_auto = True
+nbin = 22
+nbin_a = 22
+nbin_b = 22
+sample_a = matter
+sample_b = matter
+save_name = 
+sep_name = ell
