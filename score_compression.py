@@ -3,8 +3,6 @@ import kcap_methods
 import glob
 from pathlib import Path
 
-#TODO Still need to figure out how to read the covariance matrix from kcap
-
 class delfi_score_compress:
     def __init__(self, theta_fiducial, fid_vector, deriv_matrix, inv_covariance, fisher_matrix, nuisance_parameter_indices = None):
         self.theta_fiducial = theta_fiducial
@@ -12,32 +10,29 @@ class delfi_score_compress:
         self.deriv_matrix = deriv_matrix
         self.inv_covariance = inv_covariance
         self.fisher_matrix = fisher_matrix
-        
-        if nuisance_parameter_indices is not None:
-            self.nuisance_parameter_indices = nuisance_parameter_indices
+        self.inverse_fisher = np.linalg.inv(fisher_matrix)
+        self.nuisance_parameter_indices = nuisance_parameter_indices
         
     def score_compress(self, data_vector):
         """
         General Score compression
         """
         data_diff = data_vector - self.fid_vector  
-        linear_score = np.dot(self.deriv_matrix, np.dot(self.inv_covariance, data_diff))
-        inverse_fisher = np.linalg.inv(self.fisher_matrix)
+        linear_score = np.dot(self.deriv_matrix, np.dot(self.inv_covariance, data_diff.T)).T
+        
         if self.nuisance_parameter_indices:
-            # for this to work, the parameters to be marginalised out have to be at the end of the matrix
-            full_mle_fiducial = self.theta_fiducial + np.transpose(np.dot(inverse_fisher, np.transpose(linear_score)))
-            
+            full_mle_fiducial = self.theta_fiducial + np.transpose(np.dot(self.inverse_fisher, np.transpose(linear_score)))
             mle_fiducial_wanted = full_mle_fiducial[: min(self.nuisance_parameter_indices)]
             mle_fiducial_nuisance = full_mle_fiducial[min(self.nuisance_parameter_indices) :]
             sub_nuisance_fisher = self.fisher_matrix[:, self.nuisance_parameter_indices]
             nuisance_inv_fisher = np.linalg.inv(self.fisher_matrix[np.ix_(self.nuisance_parameter_indices, self.nuisance_parameter_indices)])
-            
             mle_fiducial = mle_fiducial_wanted - np.dot(sub_nuisance_fisher, np.dot(nuisance_inv_fisher, mle_fiducial_nuisance))
         else:
-            mle_fiducial = self.theta_fiducial + np.transpose(np.dot(inverse_fisher, np.transpose(linear_score)))
-        return mle_fiducial 
+            mle_fiducial = self.theta_fiducial + np.transpose(np.dot(self.inverse_fisher, linear_score.T))
 
-def nuisance_hardened_mle(fisher, score, nuisance_index = [-1]):  
+        return mle_fiducial
+
+def nuisance_hardened_score(fisher, score, nuisance_index = [-1]):  
     wanted_score = score[:,:min(nuisance_index)]
     nuisance_score = score[:,min(nuisance_index):]
     sub_nuisance_fisher = fisher[np.ix_(list(range(0, min(nuisance_index))), nuisance_index)]
@@ -161,17 +156,17 @@ def calculate_fisher(data_params, deriv_params, fiducial_mocks_dir, fiducial_moc
     fisher_matrix = calc_fisher(inv_covariance = inv_covariance , deriv_matrix = deriv_matrix)
     write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
 
-def grid_run_param_check(deriv_params, data_params, theta_names, mocks_dir, mocks_name, sim_number,
+def grid_run_param_check(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, mocks_name, sim_number,
                          fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
                          data_mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/varied_datavectors/grid', data_mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr', data_runs = 100,
-                         compressed_name = 'grid_compressed_data', cov_inv_method = 'eigen', noisey_data = True):
+                         compressed_name = 'grid_compressed_data', which_cov = 'theory_data_covariance--covariance', noisey_data = True):
 
-    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = cov_inv_method, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
-    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = which_cov, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = deriv_data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
     fid_vector = kcap_methods.get_single_data_vector(mock_run = fiducial_run, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
 
     sim_thetas = kcap_methods.get_sim_batch_thetas(sim_number = sim_number, theta_names = theta_names, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    sim_data_vectors = kcap_methods.get_sim_batch_data_vectors(sim_number, data_vector_length = 270, mocks_dir = mocks_dir, mocks_name = mocks_name, noisey_data = noisey_data)
+    sim_data_vectors = kcap_methods.get_sim_batch_data_vectors(sim_number, data_params = data_params, data_vector_length = 270, mocks_dir = mocks_dir, mocks_name = mocks_name)
     
     for data_run in range(data_runs):
         data_vector = kcap_methods.get_single_data_vector(mock_run = data_run, data_params = data_params, mocks_dir = data_mocks_dir, mocks_name = data_mocks_name)
@@ -275,41 +270,62 @@ if __name__ == "__main__":
     #                  fiducial_run = 0, 
     #                  file_loc = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks')
 
-    main(deriv_params = ['cosmological_parameters--sigma_8', 
-                         'cosmological_parameters--omch2',
-                         'cosmological_parameters--n_s',
-                         'halo_model_parameters--a',
-                         'cosmological_parameters--h0',
-                         'cosmological_parameters--ombh2'], 
-         data_params = ['bandpowers--theory_bandpower_cls'], 
-         deriv_data_params = ['bandpowers--theory_bandpower_cls'],
-         theta_names = ['cosmological_parameters--sigma_8', 
-                        'cosmological_parameters--omch2',
-                        'cosmological_parameters--n_s',
-                        'halo_model_parameters--a',
-                        'cosmological_parameters--h0',
-                        'cosmological_parameters--ombh2'], 
-         fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
-         fiducial_mocks_name = 'glass_fiducial',
-         data_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
-         data_mocks_name  = 'glass_data',
-         mocks_dir = "/share/data1/klin/kcap_out/kids_glass/hypercube_trial_01", 
-         mocks_name = "glass_22_hyper_2000", 
-         sim_number = 1056,
-         compressed_name = 'glass_compressed_data',
-         which_cov = 'bandpowers--glass_theory_cov')
+    # main(deriv_params = ['cosmological_parameters--sigma_8', 
+    #                      'cosmological_parameters--omch2',
+    #                      'cosmological_parameters--n_s',
+    #                      'halo_model_parameters--a',
+    #                      'cosmological_parameters--h0',
+    #                      'cosmological_parameters--ombh2'], 
+    #      data_params = ['bandpowers--theory_bandpower_cls'], 
+    #      deriv_data_params = ['bandpowers--theory_bandpower_cls'],
+    #      theta_names = ['cosmological_parameters--sigma_8', 
+    #                     'cosmological_parameters--omch2',
+    #                     'cosmological_parameters--n_s',
+    #                     'halo_model_parameters--a',
+    #                     'cosmological_parameters--h0',
+    #                     'cosmological_parameters--ombh2'], 
+    #      fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+    #      fiducial_mocks_name = 'glass_fiducial',
+    #      data_mocks_dir = '/share/data1/klin/kcap_out/kids_glass/fiducial_data_mocks',
+    #      data_mocks_name  = 'glass_data',
+    #      mocks_dir = "/share/data1/klin/kcap_out/kids_glass/hypercube_trial_01", 
+    #      mocks_name = "glass_22_hyper_2000", 
+    #      sim_number = 1056,
+    #      compressed_name = 'glass_median_compressed_data',
+    #      which_cov = 'bandpowers--glass_theory_median_cov')
 
-    # grid_run_param_check(deriv_params = ['cosmological_parameters--sigma_8', 
-    #                                      'cosmological_parameters--omch2'], 
-    #                      data_params = ['theory'],
-    #                      theta_names = ['cosmological_parameters--sigma_8', 
-    #                                     'cosmological_parameters--omch2'], 
-    #                      mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_31/hypercube", 
-    #                      mocks_name = "kids_1000_cosmology_with_nz_shifts_corr",
-    #                      sim_number = 4000,
-    #                      fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
-    #                      data_mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/varied_datavectors/narrower_grid', data_mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr', data_runs = 100,
-    #                      compressed_name = 'narrower_grid_compressed_data_new/compressed_data', cov_inv_method = 'eigen', noisey_data = True)
+    grid_run_param_check(deriv_params = ['cosmological_parameters--sigma_8', 
+                                         'cosmological_parameters--omch2',
+                                         'intrinsic_alignment_parameters--a',
+                                         'cosmological_parameters--n_s',
+                                         'halo_model_parameters--a',
+                                         'cosmological_parameters--h0',
+                                         'cosmological_parameters--ombh2',
+                                         'nofz_shifts--bias_1',
+                                         'nofz_shifts--bias_2',
+                                         'nofz_shifts--bias_3',
+                                         'nofz_shifts--bias_4',
+                                         'nofz_shifts--bias_5'], 
+                         data_params = ['theory_data_covariance--noise_mean'],
+                         deriv_data_params = ['theory_data_covariance--theory'],
+                         theta_names = ['cosmological_parameters--sigma_8', 
+                                        'cosmological_parameters--omch2',
+                                        'intrinsic_alignment_parameters--a',
+                                        'cosmological_parameters--n_s',
+                                        'halo_model_parameters--a',
+                                        'cosmological_parameters--h0',
+                                        'cosmological_parameters--ombh2',
+                                        'nofz_shifts--bias_1',
+                                        'nofz_shifts--bias_2',
+                                        'nofz_shifts--bias_3',
+                                        'nofz_shifts--bias_4',
+                                        'nofz_shifts--bias_5'], 
+                         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_mocks/trial_38/sim_num_test_16000", 
+                         mocks_name = "kids_1000_cosmology_with_nz_shifts_corr",
+                         sim_number = 16000,
+                         fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
+                         data_mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/varied_datavectors/narrower_grid', data_mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr', data_runs = 100,
+                         compressed_name = 'narrower_grid_compressed_data_new/compressed_data', which_cov = 'theory_data_covariance--covariance', noisey_data = True)
 
     # cov_varied_check(deriv_params = ['cosmological_parameters--sigma_8', 
     #                                  'cosmological_parameters--omch2',

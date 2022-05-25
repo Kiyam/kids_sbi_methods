@@ -557,171 +557,6 @@ class kcap_deriv:
 
             print("Derivatives saved succesfully")
 
-class kcap_delfi(kcap_deriv):
-    def __init__(self, params_to_vary, mocks_dir = None, mocks_name = None, mocks_ini_file = None, mocks_values_file = None,
-                 ombh2_fiducial = 0.0224,
-                 h0_fiducial = 0.674,
-                 folders_to_keep = ["cosmological_parameters",
-                                    "intrinsic_alignment_parameters",
-                                    "growth_parameters",
-                                    "bias_parameters",
-                                    "halo_model_parameters",
-                                    "likelihoods",
-                                    "theory_data_covariance"], 
-                 files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"],
-                 verbose = False,
-                 comm = None):
-        """
-        Gets variable from .env file
-        """
-
-        env = Env()
-        env.read_env()
-
-        self.cosmosis_src_dir = env.str('cosmosis_src_dir')
-        
-        # mocks_dir settings
-        if mocks_dir == None:
-            self.kids_mocks_dir = env.str('kids_mocks_dir')
-        else:
-            self.kids_mocks_dir = mocks_dir
-
-        # mocks_name settings
-        if mocks_name == None:
-            self.kids_mocks_root_name = env.str('kids_mocks_root_name')
-        else:
-            self.kids_mocks_root_name = mocks_name
-        
-        # mocks ini file settings
-        if mocks_ini_file == None:
-            self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
-        else:
-            self.kids_pipeline_ini_file = mocks_ini_file
-
-        # mocks values file settings
-        if mocks_values_file == None:
-            self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
-        else:
-            self.kids_pipeline_values_file = mocks_values_file
-        
-        if isinstance(params_to_vary, list):
-            self.params_to_vary = params_to_vary
-        else:
-            raise Exception("param_to_vary variable must be a string")
-        
-        self.ombh2_fiducial = ombh2_fiducial
-        self.h0_fiducial = h0_fiducial
-        
-        self.verbose = verbose
-        self.folders_to_keep = folders_to_keep
-        self.files_to_remove = files_to_remove
-        
-        if comm:
-            self.comm = comm
-        else:
-            self.comm = None
-    
-    def run_delfi_kcap(self, rank):
-        pipeline_file = self.kids_pipeline_ini_file + '_' + str(rank) + '.ini'
-        subprocess.run(["cosmosis", pipeline_file])
-    
-    def set_delfi_kcap_pipeline(self, rank):      
-        pipeline_file = self.kids_pipeline_ini_file + '_' + str(rank) + '.ini'
-        pipeline_config = cfg.ConfigParser()
-        pipeline_config.read(pipeline_file)
-        
-        to_change = 0
-        
-        if pipeline_config['DEFAULT']['RESULTS_PATH'] != self.kids_mocks_dir:
-            pipeline_config['DEFAULT']['RESULTS_PATH'] = self.kids_mocks_dir
-            to_change += 1
-            
-        if pipeline_config['DEFAULT']['RESULTS_NAME'] != self.kids_mocks_root_name + '_' + str(rank):
-            pipeline_config['DEFAULT']['RESULTS_NAME'] = self.kids_mocks_root_name + '_' + str(rank)
-            to_change += 1
-        
-        if pipeline_config['pipeline']['values'] != self.mocks_values_file + '_' + str(rank):
-            pipeline_config['pipeline']['values'] = self.mocks_values_file + '_' + str(rank)
-            to_change += 1
-            
-        with open(pipeline_file, 'w') as configfile:
-            pipeline_config.write(configfile)
-    
-    def write_delfi_kcap_values(self, theta, rank):
-        """
-        Modifies the deriv_values_list.ini file
-        """
-        assert len(theta) == len(self.params_to_vary), "Different number of parameters to vary defined vs parameter value ranges given."
-        values_config = cfg.ConfigParser()
-        pipeline_values_file = self.kids_pipeline_values_file + '_' + str(rank) + '.ini'
-        values_config.read(pipeline_values_file)
-
-        for i, param in enumerate(self.params_to_vary):
-            header, name = param.split("--")
-            if name == "sigma_8":
-                name = "sigma_8_input"
-            elif name == "s_8":
-                name = "s_8_input"
-            elif name == "omega_m":
-                ### This is the complicated one, need to find appropriate omch2 values
-                omch2 = theta[i] * (self.h0_fiducial ** 2) - self.ombh2_fiducial
-                name = "omch2"
-            if values_config.has_option(header, name):
-                values_config[header][name] = str(theta[i])
-            else:
-                raise Exception("Unknown parameter specified in params_to_fix")
-
-        with open(pipeline_values_file, 'w') as configfile:
-            values_config.write(configfile)
-    
-    def delete_delfi_unwanted(self, rank):
-        #! This should only be run on the direct kcap output, not any folder containing derivatives
-        all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(rank)+'/*')
-        kept_folders = []
-        for folder in all_folders:
-            for to_keep in self.folders_to_keep:
-                if re.search(to_keep, folder):
-                    kept_folders.append(folder)
-        
-        folders_to_delete = list(set(all_folders) - set(kept_folders))
-        
-        for folder_to_delete in folders_to_delete:
-            shutil.rmtree(folder_to_delete)
-        
-        for file_to_remove in self.files_to_remove:
-            try:
-                os.remove(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(rank)+'/'+file_to_remove)
-            except:
-                pass
-            
-        self.check_wanted_folders(rank = rank)
-        if self.verbose == True:
-            print("Succesfully deleted all superfluous files and folders in extracted mock run.")
-    
-    def check_wanted_folders(self, rank):
-        all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(rank)+'/*')
-        if len(all_folders) != len(self.folders_to_keep):
-            raise Exception("Some folders missing! Please double check the files carefully")
-    
-    def return_data_vector(self, rank):
-        theory_file = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(rank)+'/theory_data_covariance/theory.txt'
-        theory = np.loadtxt(theory_file, skiprows = 1)
-        return theory
-
-    def simulate(self, theta):
-        if self.comm:
-            rank = self.comm.Get_rank()
-        else:
-            rank = 0
-        if self.verbose == True:
-            print('Running simulator on MPI rank %s' %(rank))
-            
-        self.write_delfi_kcap_values(theta, rank)
-        self.run_delfi_kcap(rank)
-        self.delete_delfi_unwanted(rank)
-        data_vector = self.return_data_vector(rank)
-        return data_vector
-    
 class organise_kcap_output(kcap_deriv):
     def __init__(self, mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
                  folders_to_keep = ["shear_xi_minus_binned", 
@@ -772,7 +607,6 @@ class organise_kcap_output(kcap_deriv):
                 with open(self.kids_mocks_dir + '/missing_runs.txt', 'a') as f:
                     f.write(str(mock_run) + '\n')
 
-
     def delete_unwanted(self, mock_run):
         #! This should only be run on the direct kcap output, not any folder containing derivatives
         all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/*')
@@ -785,7 +619,10 @@ class organise_kcap_output(kcap_deriv):
         folders_to_delete = list(set(all_folders) - set(kept_folders))
         
         for folder_to_delete in folders_to_delete:
-            shutil.rmtree(folder_to_delete)
+            try:
+                shutil.rmtree(folder_to_delete)
+            except:
+                pass
         
         for file_to_remove in self.files_to_remove:
             try:
@@ -793,7 +630,6 @@ class organise_kcap_output(kcap_deriv):
             except:
                 pass
             
-        self.check_wanted_folders(mock_run = mock_run)
         print("Succesfully deleted all superfluous files and folders in extracted mock run %s." % str(mock_run))
     
     def delete_all_unwanted(self):
@@ -804,11 +640,6 @@ class organise_kcap_output(kcap_deriv):
             print("All desired files and folders in extracted mock run %s have been succesfully deleted." % str(mock_run))
         print("All unwanted folders and files delete with hopefully no missing files.")
         
-    def check_wanted_folders(self, mock_run):
-        all_folders = glob.glob(self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'/*')
-        if len(all_folders) != len(self.folders_to_keep):
-            raise Exception("Some folders missing! Please double check the files in mock run %s carefully" % str(mock_run))
-    
     def delete_mock_tgz(self, mock_run):
         tgz_to_delete = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+str(mock_run)+'.tgz'
         os.remove(tgz_to_delete)
@@ -948,6 +779,208 @@ class read_kcap_values(kcap_deriv):
         like_val = self.kids_mocks_dir+'/'+self.kids_mocks_root_name+'_'+self.mock_run+'/likelihoods/values.txt'
         like_val = self.read_param_from_txt_file(file_location = like_val, parameter = like_name)
         return like_val
+
+class kcap_delfi(organise_kcap_output, read_kcap_values):
+    def __init__(self, params_to_vary, params_to_read, data_name, data_vec_length,
+                 mocks_dir = None, 
+                 mocks_name = None, 
+                 mocks_ini_file = None, 
+                 mocks_values_file = None,
+                 folders_to_keep = ["cosmological_parameters",
+                                    "intrinsic_alignment_parameters",
+                                    "growth_parameters",
+                                    "bias_parameters",
+                                    "halo_model_parameters",
+                                    "likelihoods",
+                                    "theory_data_covariance",
+                                    "bandpowers",
+                                    "shear_cl",
+                                    "shear_pcl",
+                                    "nofz_shifts"], 
+                 files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"],
+                 save_folder = None,
+                 nz_indices = None,
+                 nz_cov = None,
+                 verbose = False,
+                 comm = None,
+                 slurm_file = None,
+                 is_binned = False):
+        """
+        Gets variable from .env file
+        """
+
+        env = Env()
+        env.read_env()
+
+        if slurm_file:
+            self.is_cluster = True
+            self.slurm_file = slurm_file
+        else:
+            self.is_cluster = False
+        
+        self.cosmosis_src_dir = env.str('cosmosis_src_dir')
+        
+        # mocks_dir settings
+        if mocks_dir == None:
+            self.kids_mocks_dir = env.str('kids_mocks_dir')
+        else:
+            self.kids_mocks_dir = mocks_dir
+
+        # mocks_name settings
+        if mocks_name == None:
+            self.kids_mocks_root_name = env.str('kids_mocks_root_name')
+        else:
+            self.kids_mocks_root_name = mocks_name
+        
+        # mocks ini file settings
+        if mocks_ini_file == None:
+            self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
+        else:
+            self.kids_pipeline_ini_file = mocks_ini_file
+
+        # mocks values file settings
+        if mocks_values_file == None:
+            self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
+        else:
+            self.kids_pipeline_values_file = mocks_values_file
+        
+        if isinstance(params_to_vary, list):
+            self.params_to_vary = params_to_vary
+        else:
+            raise Exception("param_to_vary variable must be a list")
+        
+        if isinstance(params_to_read, list):
+            self.params_to_read = params_to_read
+        else:
+            raise Exception("params_to_read variable must be a list")
+
+        self.save_folder = save_folder
+        self.nz_indices = nz_indices
+        self.nz_cov = nz_cov
+        self.data_name = data_name
+        self.data_vec_length = data_vec_length
+        self.mock_run_start = 0 #For the active learning method the mock runs will aways start from number 0
+        self.verbose = verbose
+        self.folders_to_keep = folders_to_keep
+        self.files_to_remove = files_to_remove
+        self.is_binned = is_binned
+        
+        if comm:
+            self.comm = comm
+        
+        print("Simulator succesfully initialized")
+    
+    def run_delfi_kcap(self, rank = None):
+        if self.is_cluster == True:
+            output = subprocess.run(["sbatch", self.slurm_file], stdout = subprocess.PIPE, text=True)
+        else:
+            pipeline_file = self.kids_pipeline_ini_file + '_' + str(rank) + '.ini'
+            output = subprocess.run(["cosmosis", pipeline_file])
+        
+        text_out = output.stdout
+        jobid = text_out.split(" ")[-1].rstrip()
+        print("------------------------")
+        print("Submitted slurm job with jobid: "+jobid)
+        print("------------------------")
+        return jobid
+        
+    def write_delfi_kcap_values(self, theta, rank = None):
+        """
+        Modifies the values_list.ini file
+        """
+        if theta.ndim > 1:
+            assert theta.shape[1] == len(self.params_to_vary), "Different number of parameters to vary fed vs. defined to vary."
+        else:
+            assert len(theta) == len(self.params_to_vary), "Different number of parameters to vary fed vs. defined to vary."
+        values_config = cfg.ConfigParser()
+        if rank:
+            values_list_file = self.kids_pipeline_values_file + '_' + str(rank) + '.ini'
+        else:
+            values_list_file = self.kids_pipeline_values_file + '.ini'
+        
+        if self.nz_indices:
+            inv_L = np.linalg.inv(np.linalg.cholesky(self.nz_cov)) 
+            if theta.ndim > 1:
+                nz_theta = theta[:,min(self.nz_indices):max(self.nz_indices)+1]
+                nz_theta = np.dot(inv_L, nz_theta.T).T
+                theta[:,min(self.nz_indices):max(self.nz_indices)+1] = nz_theta 
+            else:
+                nz_theta = theta[min(self.nz_indices):max(self.nz_indices)+1]
+                nz_theta = np.dot(inv_L, nz_theta)
+                theta[min(self.nz_indices):max(self.nz_indices)+1] = nz_theta 
+
+        #Just doing some parameter renaming
+        params_to_vary = self.params_to_vary
+        for i, val in enumerate(params_to_vary):
+            if val == "cosmological_parameters--sigma_8":
+                params_to_vary[i] = "cosmological_parameters--sigma_8_input"
+            elif val == "cosmological_parameters--s_8":
+                params_to_vary[i] = "cosmological_parameters--s_8_input"
+
+        #Write the values list to file
+        header = " ".join(params_to_vary)
+        if theta.ndim > 1:
+            np.savetxt(fname = values_list_file, X = theta, header=header)
+        else:
+            np.savetxt(fname = values_list_file, X = np.array([theta]), header=header)
+
+        print("Succesfully set values to run simulations on")
+    
+    def poll_cluster_finished(self, jobid):
+        start_time = time.time()
+        elapsed = time.time() - start_time
+        finished = False
+        while elapsed <= 86400. and finished != True:
+            try: 
+                subprocess.check_output(["squeue", "-j", jobid])
+                time.sleep(30)
+            except:
+                print("Simulations finished!")
+                finished = True
+        print("Waiting to ensure all IO operations are finished")
+        time.sleep(40)
+    
+    def save_sims(self):
+        if self.save_folder:
+            which_population = len(glob.glob(self.save_folder + '/*/'))
+            shutil.copytree(self.kids_mocks_dir, self.save_folder  + '/population_' + str(which_population))
+
+    def clean_mocks_folder(self):
+        shutil.rmtree(self.kids_mocks_dir)
+        os.makedirs(self.kids_mocks_dir)
+
+    def simulate(self, theta):
+        if theta.ndim > 1:
+            self.num_mock_runs = len(theta)
+        else:
+            self.num_mock_runs = 1
+        print("Writing values to file")
+        self.write_delfi_kcap_values(theta)
+        print("Running KCAP")
+        jobid = self.run_delfi_kcap()
+        time.sleep(30)
+        self.poll_cluster_finished(jobid)
+        self.extract_and_delete()
+        self.save_sims()
+        sim_data_vector = np.empty(self.data_vec_length)
+        thetas = np.empty(len(self.params_to_read))
+        for i in range(self.num_mock_runs):
+            self.mock_run = str(i)
+            try:
+                values_read = self.read_vals(vals_to_read = self.data_name)
+                data_vector = np.array(list(values_read.values()))
+                sim_data_vector = np.vstack((sim_data_vector, data_vector))
+
+                theta = self.get_params(parameter_list = self.params_to_read)
+                theta = np.array(list(theta.values()))
+                thetas = np.vstack((thetas, theta))
+            except:
+                print("Mock run %s doesn't exist, skipping this datavector" % (i))
+
+        assert len(sim_data_vector) ==  len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
+        self.clean_mocks_folder()
+
+        return sim_data_vector, thetas
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, stencil_pts, 
                    mocks_dir = None, mocks_name = None, cleanup = 2,
@@ -1205,7 +1238,7 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
                                       "nofz_shifts",
                                       "nz_source",
                                       "priors"],
-                   files_to_remove = []): #"theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"
+                   files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"]):
     print("Initiating unzip and cleanup afterwards... ")
     clean_method = organise_kcap_output(mock_run_start = mock_run_start, num_mock_runs = num_mock_runs, mocks_dir = mocks_dir, mocks_name = mocks_name, 
                                         folders_to_keep = folders_to_keep, files_to_remove = files_to_remove)
