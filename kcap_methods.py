@@ -9,6 +9,7 @@ import errno
 import re
 import time
 import pyDOE as pydoe
+from scipy.stats.distributions import norm
 from pathlib import Path
 from environs import Env
 
@@ -787,8 +788,6 @@ class read_kcap_values(kcap_deriv):
         return like_val
 
 class kcap_delfi(organise_kcap_output, read_kcap_values):
-    #! TODO: Write a method to allow different params to be varied vs to be trained with appropriate transformations
-    #! TODO: Write a method to allow nz's to be varied but not trained upon
     def __init__(self, params_to_vary, params_to_read, data_name, data_vec_length,
                  mocks_dir = None, 
                  mocks_name = None, 
@@ -906,6 +905,7 @@ class kcap_delfi(organise_kcap_output, read_kcap_values):
         else:
             values_list_file = self.kids_pipeline_values_file + '.ini'
         
+        # The NZ mixing stuff
         if self.nz_indices:
             inv_L = np.linalg.inv(np.linalg.cholesky(self.nz_cov)) 
             if theta.ndim > 1:
@@ -938,7 +938,7 @@ class kcap_delfi(organise_kcap_output, read_kcap_values):
         start_time = time.time()
         elapsed = time.time() - start_time
         finished = False
-        while elapsed <= 86400. and finished != True:
+        while elapsed <= 1200000. and finished != True:
             try: 
                 subprocess.check_output(["squeue", "-j", jobid])
                 time.sleep(30)
@@ -986,55 +986,71 @@ class kcap_delfi(organise_kcap_output, read_kcap_values):
             except:
                 print("Mock run %s doesn't exist, skipping this datavector" % (i))
 
-        assert len(sim_data_vector) ==  len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
+        assert len(sim_data_vector) == len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
         self.clean_mocks_folder()
 
         return sim_data_vector, thetas
 
 class kcap_delfi_proposal():
-    def __init__(self, n_initial, lower, upper, delta_z_indices = None, delta_z_cov = None, factor_of_safety = 5, iterations = 1000):
+    def __init__(self, n_initial, lower, upper, transformation = None, delta_z_indices = None, delta_z_cov = None, factor_of_safety = 5, iterations = 1000):
+        # The lower and upper bounds for this are for a truncated Gaussian, so it should be different to the PyDELFI prior
         assert len(lower) == len(upper)
         num_samples = n_initial * factor_of_safety
         points = pydoe.lhs(len(lower), samples = num_samples, criterion = 'cm', iterations = iterations)
         for i in range(len(lower)):
-            val_range = upper[i] - lower[i]
-            points[:, i] *= val_range
-            points[:, i] += lower[i]
+            if delta_z_indices is not None: #Does a truncated Gaussian
+                if i in delta_z_indices:
+                    p = 0
+                    while p == 0:
+                        x = norm(loc = 0, scale = 1).ppf(points[:,i])
+                        p = self.gaussian(lower[i], upper[i], x)
+                    points[:,i] = x
+            else:
+                val_range = upper[i] - lower[i]
+                points[:, i] *= val_range
+                points[:, i] += lower[i]
+        
+        if transformation is not None:
+            points = transformation(points)
         
         if delta_z_cov is not None:
-            uncorr_nz = points[:,min(delta_z_indices):max(delta_z_indices)+1]
+            uncorr_nz = points[:,min(delta_z_indices):max(delta_z_indices)+1]                
             L = np.linalg.cholesky(delta_z_cov)
             corr_nz = np.inner(L, uncorr_nz).T
             points[:,min(delta_z_indices):max(delta_z_indices)+1] = corr_nz
 
         self.sample_points = iter(points)
     
+    def gaussian(self, g_lower, g_upper, x):
+        inrange = np.prod(x > g_lower)*np.prod(x < g_upper)
+        return inrange*np.prod(g_upper-g_lower)
+    
     def draw(self):
         return next(self.sample_points)
     
-class kcap_delfi_redraw_proposal():
-    def __init__(self, lower, upper, delta_z_indices = None, delta_z_cov = None, iterations = 1000):
-        assert len(lower) == len(upper)
-        self.lower = lower
-        self.upper = upper
-        self.delta_z_indices = delta_z_indices
-        self.delta_z_cov = delta_z_cov
-        self.iterations = iterations
+# class kcap_delfi_redraw_proposal():
+#     def __init__(self, lower, upper, delta_z_indices = None, delta_z_cov = None, iterations = 1000):
+#         assert len(lower) == len(upper)
+#         self.lower = lower
+#         self.upper = upper
+#         self.delta_z_indices = delta_z_indices
+#         self.delta_z_cov = delta_z_cov
+#         self.iterations = iterations
     
-    def draw(self, n_samples):
-        points = pydoe.lhs(len(self.lower), samples = n_samples, criterion = 'cm', iterations = self.iterations)
-        for i in range(len(self.lower)):
-            val_range = self.upper[i] - self.lower[i]
-            points[:, i] *= val_range
-            points[:, i] += self.lower[i]
+#     def draw(self, n_samples):
+#         points = pydoe.lhs(len(self.lower), samples = n_samples, criterion = 'cm', iterations = self.iterations)
+#         for i in range(len(self.lower)):
+#             val_range = self.upper[i] - self.lower[i]
+#             points[:, i] *= val_range
+#             points[:, i] += self.lower[i]
         
-        if self.delta_z_cov is not None:
-            uncorr_nz = points[:,min(self.delta_z_indices):max(self.delta_z_indices)+1]
-            L = np.linalg.cholesky(self.delta_z_cov)
-            corr_nz = np.inner(L, uncorr_nz).T
-            points[:,min(self.delta_z_indices):max(self.delta_z_indices)+1] = corr_nz
+#         if self.delta_z_cov is not None:
+#             uncorr_nz = points[:,min(self.delta_z_indices):max(self.delta_z_indices)+1]
+#             L = np.linalg.cholesky(self.delta_z_cov)
+#             corr_nz = np.inner(L, uncorr_nz).T
+#             points[:,min(self.delta_z_indices):max(self.delta_z_indices)+1] = corr_nz
 
-        return np.array(points)
+#         return np.array(points)
 
 def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, stencil_pts, 
                    mocks_dir = None, mocks_name = None, cleanup = 2,
@@ -1303,8 +1319,9 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":      
-    # extract_and_cleanup(mock_run_start = 0, num_mock_runs = 16000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_39_parameter_test/12_params/12_params_16000_samples',
-    #                     mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 16000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_42_new_hypercube_parameter_test/12_params/24000_samples',
+                        mocks_name = 'kids_1000_with_nz_shifts')
+   
     
     # data_vectors = get_sim_batch_data_vectors(sim_number = 8000, data_params = ['theory_data_covariance--theory'], data_vector_length = 270, 
     #                                           mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing', mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
@@ -1330,7 +1347,7 @@ if __name__ == "__main__":
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
     # run_kcap_deriv(mock_run = 0, 
-    #             param_to_vary = "cosmological_parameters--omch2",
+    #             param_to_vary = "cosmological_parameters--ombh2",
     #             params_to_fix = ['cosmological_parameters--sigma_8',
     #                              'intrinsic_alignment_parameters--a',
     #                              'cosmological_parameters--n_s',
@@ -1354,8 +1371,8 @@ if __name__ == "__main__":
     #             sbatch_file = '/share/splinter/klin/slurm/slurm_glass_derivs.sh'
     #             )
 
-    run_omega_m_deriv(mock_run = 0, 
-                      params_varied = ["cosmological_parameters--omch2"], 
-                      vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"], 
-                      mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data', 
-                      mocks_name = 'glass_fiducial')
+    # run_omega_m_deriv(mock_run = 0, 
+    #                   params_varied = ["cosmological_parameters--omch2"], 
+    #                   vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"], 
+    #                   mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data', 
+    #                   mocks_name = 'glass_fiducial')
