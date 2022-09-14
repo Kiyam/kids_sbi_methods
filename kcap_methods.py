@@ -998,13 +998,12 @@ class kcap_delfi_proposal():
         num_samples = n_initial * factor_of_safety
         points = pydoe.lhs(len(lower), samples = num_samples, criterion = 'cm', iterations = iterations)
         for i in range(len(lower)):
-            if delta_z_indices is not None: #Does a truncated Gaussian
-                if i in delta_z_indices:
-                    p = 0
-                    while p == 0:
-                        x = norm(loc = 0, scale = 1).ppf(points[:,i])
-                        p = self.gaussian(lower[i], upper[i], x)
-                    points[:,i] = x
+            if delta_z_indices is not None and i in delta_z_indices: #Does a truncated Gaussian
+                p = 0
+                while p == 0:
+                    x = norm(loc = 0, scale = 1).ppf(points[:,i])
+                    p = self.gaussian(lower[i], upper[i], x)
+                points[:,i] = x
             else:
                 val_range = upper[i] - lower[i]
                 points[:, i] *= val_range
