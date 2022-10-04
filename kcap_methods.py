@@ -1318,8 +1318,8 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":      
-    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 16000, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_42_new_hypercube_parameter_test/12_params/24000_samples',
-                        mocks_name = 'kids_1000_with_nz_shifts')
+    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 100, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_43_fiducial_cosmology_sensitivity',
+                        mocks_name = 'kids_1000_mocks')
    
     
     # data_vectors = get_sim_batch_data_vectors(sim_number = 8000, data_params = ['theory_data_covariance--theory'], data_vector_length = 270, 
