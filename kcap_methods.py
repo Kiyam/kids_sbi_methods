@@ -60,7 +60,13 @@ class read_kcap_values:
         
         return content
     
-    def read_vals(self, vals_to_read):
+    def read_vals(self, vals_to_read, output_type = 'as_dict'):
+        """
+        Options are:
+        as_dict - returns the values as a dictionary with the keys matched to the value in the input vals_to_read list
+        as_matrix - reshapes the array to a matrix
+        as_flat - returns the values as a flat vector
+        """
         if isinstance(vals_to_read, list):
             vals_to_read = vals_to_read
         elif isinstance(vals_to_read, str):
@@ -84,35 +90,48 @@ class read_kcap_values:
                     for bin_name in self.bin_order:
                         vals_array = np.append(vals_array, bin_vals_dict[bin_name])
                 else:
-                    vals_array = np.loadtxt(self.content.extractfile(self.mock_path+'/'+val_folder+'/'+val_name+'.txt'))      
+                    try:
+                        file_name = [file_name for file_name in self.content.getnames() if val_folder+'/'+val_name in file_name][0]
+                        vals_array = np.loadtxt(self.content.extractfile(file_name))
+                    except:
+                        raise Exception("Badly defined parameter name %s" % val_names)  
             except:
                 raise Exception("Badly defined parameter name %s" % val_names)               
                 
             vals_dict[val_names] = vals_array
         
-        return vals_dict
-    
-    def read_params(self, parameter_list):
+        if output_type == 'as_dict':
+            return vals_dict
+        elif output_type == 'as_flat':
+            data_vector = np.array(list(vals_dict.values())).flatten()
+            return data_vector
+        elif output_type == 'as_matrix':
+            data_vector = np.array(list(vals_dict.values()))
+            return data_vector
+            
+    def read_params(self, parameter_list, output_type = 'as_dict'):
         """
         Gets parameters from the specified mock run
         """
         parameter_dict = {} # Dictionary of parameters
-        for item in parameter_list:
-            header, name = item.split("--")
-            for line in self.content.extractfile(self.mock_path+'/'+header+'/values.txt'):
+        for param_name in parameter_list:
+            header, name = param_name.split("--")
+            try:
+                file_loc = [file_name for file_name in self.content.getnames() if header+'/values.txt' in file_name][0]
+            except:
+                raise Exception("Badly defined parameter name %s" % param_name)
+            for line in self.content.extractfile(file_loc):
                 key, value = [word.strip() for word in line.decode('utf-8').split("=")]
                 if key == name:
                     param_val = float(value)
-            parameter_dict[item] = param_val
+            parameter_dict[param_name] = param_val
         print("Fetched parameters are: %s" % str(parameter_dict))
-        param_dict = parameter_dict
-        return(parameter_dict)
-    
-    def close_tar(self):
-        """
-        Cleanly closes tarfile after reading
-        """
-        self.content.close()
+        
+        if output_type == 'as_dict':
+            return parameter_dict
+        elif output_type == 'as_flat':
+            param_vector = np.array(list(parameter_dict.values())).flatten()
+            return param_vector
         
     def write_to_tar(self, to_write, to_write_headers, file_loc):
         """
@@ -160,6 +179,12 @@ class read_kcap_values:
         content.close()
         
         self.content = tarfile.open(self.mock_path+'.tgz', 'r:gz')
+        
+    def close(self):
+        """
+        Cleanly closes tarfile after reading
+        """
+        self.content.close()
     
     def delete_mock_tgz(self, mock_run):
         tgz_to_delete = self.mocks_dir+'/'+self.mocks_name+'_'+str(mock_run)+'.tgz'
@@ -174,8 +199,8 @@ class read_kcap_values:
         print("All .tgz files removed!")    
 
 class kcap_deriv(read_kcap_values):
-    def __init__(self, mock_run, param_to_vary, params_to_fix, vals_to_diff, stencil_pts = 5, step_size = 0.01, 
-                 mocks_dir = None, mocks_name = None, deriv_dir = None, deriv_name = None, 
+    def __init__(self, param_to_vary, params_to_fix, vals_to_diff, stencil_pts = 5, step_size = 0.01, 
+                 mock_run = None, mocks_dir = None, mocks_name = None, deriv_dir = None, deriv_name = None, 
                  deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None, sbatch_file = None):
         """
         Gets variable from .env file
@@ -460,7 +485,7 @@ class kcap_deriv(read_kcap_values):
             self.write_to_tar(to_write, to_write_headers, file_loc)
             print("Derivatives saved succesfully")
 
-class kcap_delfi(read_kcap_values):
+class kcap_delfi():
     def __init__(self, params_to_vary, params_to_read, data_name, data_vec_length,
                  mocks_dir = None, 
                  mocks_name = None, 
@@ -472,43 +497,25 @@ class kcap_delfi(read_kcap_values):
                  verbose = False,
                  comm = None,
                  slurm_file = None,
-                 is_binned = False):
+                 bin_order = None):
         """
         Gets variable from .env file
         """
-
-        env = Env()
-        env.read_env()
 
         if slurm_file:
             self.is_cluster = True
             self.slurm_file = slurm_file
         else:
             self.is_cluster = False
+            
+        if comm:
+            self.comm = comm
         
-        # mocks_dir settings
-        if mocks_dir == None:
-            self.mocks_dir = env.str('kids_mocks_dir')
-        else:
-            self.mocks_dir = mocks_dir
-
-        # mocks_name settings
-        if mocks_name == None:
-            self.mocks_name = env.str('kids_mocks_root_name')
-        else:
-            self.mocks_name = mocks_name
-        
-        # mocks ini file settings
-        if mocks_ini_file == None:
-            self.kids_pipeline_ini_file = env.str('kids_pipeline_ini_file')
-        else:
-            self.kids_pipeline_ini_file = mocks_ini_file
-
-        # mocks values file settings
-        if mocks_values_file == None:
-            self.kids_pipeline_values_file = env.str('kids_pipeline_values_file')
-        else:
-            self.kids_pipeline_values_file = mocks_values_file
+        # mocks settings
+        self.mocks_dir = mocks_dir
+        self.mocks_name = mocks_name
+        self.kids_pipeline_ini_file = mocks_ini_file
+        self.kids_pipeline_values_file = mocks_values_file
         
         if isinstance(params_to_vary, list):
             self.params_to_vary = params_to_vary
@@ -525,14 +532,18 @@ class kcap_delfi(read_kcap_values):
         self.nz_cov = nz_cov
         self.data_name = data_name
         self.data_vec_length = data_vec_length
-        self.mock_run_start = 0 #For the active learning method the mock runs will aways start from number 0
         self.verbose = verbose
         self.folders_to_keep = folders_to_keep
         self.files_to_remove = files_to_remove
-        self.is_binned = is_binned
         
-        if comm:
-            self.comm = comm
+        if bin_order == None:
+            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
+                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
+                              'bin_3_3', 'bin_4_3', 'bin_5_3',
+                              'bin_4_4', 'bin_5_4',
+                              'bin_5_5']
+        else:
+            self.bin_order = bin_order
         
         print("Simulator succesfully initialized")
     
@@ -629,20 +640,21 @@ class kcap_delfi(read_kcap_values):
         self.poll_cluster_finished(jobid)
         self.save_sims()
         
-        sim_data_vector = np.zeros((self.num_mock_runs, self.data_vec_length))
-        thetas = np.zeros((self.num_mock_runs, len(self.params_to_read)))
         for i in range(self.num_mock_runs):
             self.mock_run = str(i)
             try:
-                values_read = self.read_vals(vals_to_read = self.data_name)
-                data_vector = np.array(list(values_read.values()))
-                theta = self.get_params(parameter_list = self.params_to_read)
-                theta = np.array(list(theta.values()))
-
-                sim_data_vector[i] = data_vector
-                thetas[i] = theta
+                content = read_kcap_values(mock_run = i, mocks_dir = self.mocks_dir, mocks_name = self.mocks_name, bin_order = self.bin_order)
+                data_vector = content.read_vals(vals_to_read = self.data_name, output_type = 'as_flat')
+                theta = content.read_params(parameter_list = self.params_to_read, output_type = 'as_flat')
             except:
                 print("Mock run %s doesn't exist, skipping this datavector" % (i))
+                
+            if thetas and sim_data_vector:
+                thetas = np.vstack((thetas, theta))
+                sim_data_vector = np.vstack((sim_data_vector, data_vector))
+            else:
+                thetas = theta
+                sim_data_vector = data_vector
 
         assert len(sim_data_vector) == len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
         self.clean_mocks_folder()
@@ -685,44 +697,43 @@ class kcap_delfi_proposal():
     def draw(self):
         return next(self.sample_points)
 
-def run_kcap_deriv(mock_run, param_to_vary, params_to_fix, vals_to_diff, step_size, stencil_pts, 
-                   mocks_dir = None, mocks_name = None, cleanup = 2,
+def run_kcap_deriv(param_to_vary, params_to_fix, vals_to_diff, step_size, stencil_pts,
+                   mock_run = None, mocks_dir = None, mocks_name = None, cleanup = True,
                    deriv_dir = None, deriv_name = None, deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None,
                    sbatch_file = None):
     """
     Cleanup == 2 means cleaning everything, cleanup = 1 means only cleaning up the temp deriv folder but keeps the dx values
     """
-    kcap_run = kcap_deriv(mock_run = mock_run, 
-                          param_to_vary = param_to_vary, 
-                          params_to_fix = params_to_fix,
-                          vals_to_diff = vals_to_diff,
+    kcap_run = kcap_deriv(param_to_vary = param_to_vary, 
+                          params_to_fix = params_to_fix, 
+                          vals_to_diff = vals_to_diff, 
+                          stencil_pts = stencil_pts, 
+                          step_size = step_size, 
+                          mock_run = mock_run, 
                           mocks_dir = mocks_dir, 
-                          mocks_name = mocks_name,
+                          mocks_name = mocks_name, 
                           deriv_dir = deriv_dir, 
                           deriv_name = deriv_name, 
                           deriv_ini_file = deriv_ini_file, 
                           deriv_values_file = deriv_values_file, 
-                          deriv_values_list_file = deriv_values_list_file,
+                          deriv_values_list_file = deriv_values_list_file, 
                           sbatch_file = sbatch_file)
+
     check = kcap_run.check_existing_derivs()
     if check is True:
         print("All files found for these parameters, skipping this particular deriv run")
     else:
         print("Not all values found, continuing script...")
-        pass
-        params = kcap_run.get_params()
-        step_size, abs_step_size = kcap_run.write_deriv_values(step_size = step_size, stencil_pts = stencil_pts)
+        kcap_run.check_deriv_ini_settings()
+        kcap_run.write_deriv_ini_values()
         kcap_run.run_deriv_kcap(mpi_opt = False, cluster = True)
         kcap_run.poll_cluster_finished(stencil_pts = stencil_pts)
-        kcap_run.copy_deriv_vals_to_mocks(step_size = step_size, abs_step_size = abs_step_size, stencil_pts = stencil_pts)
-        kcap_run.first_deriv(abs_step_size = abs_step_size, stencil_pts = stencil_pts)
-        if cleanup == 0:
-            pass
-        elif cleanup == 1:
-            kcap_run.cleanup_deriv_folder()
-        elif cleanup == 2:
-            kcap_run.cleanup_deriv_folder()
-            kcap_run.cleanup_dx()
+        deriv_dict = kcap_run.calc_deriv_values()
+        kcap_run.save_deriv_values(deriv_dict)
+        if param_to_vary == 'cosmological_parameters--omch2':
+            kcap_run.omega_m_deriv()
+        if cleanup == True:
+            kcap_run.clean_deriv_folder()
 
 def run_omega_m_deriv(mock_run, params_varied, vals_to_diff, mocks_dir = None, mocks_name = None):
     kcap_run = kcap_deriv(mock_run = mock_run, 
@@ -769,207 +780,111 @@ def calc_inv_covariance(covariance, which_cov = "eigen"):
         
     return inv_covariance
 
-def get_values(mock_run, vals_to_read, mocks_dir = None, mocks_name = None, bin_order = None):
-    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
-    values_read = values_method.read_vals(vals_to_read = vals_to_read)
-    return values_read
-
-def get_params(mock_run, vals_to_read, mocks_dir = None, mocks_name = None):
-    values_method = read_kcap_values(mock_run = mock_run, mocks_dir = mocks_dir, mocks_name = mocks_name)
-    values_read = values_method.get_params(parameter_list = vals_to_read)
-    return values_read
-
 def get_fiducial_deriv(deriv_params, data_params, fiducial_run = 0, mocks_dir = None, mocks_name = None, bin_order = None):
-    for i, deriv_param in enumerate(deriv_params):
-        if i == 0:
-            deriv_vals_to_get = [data_param.split("--")[0] + '_' + deriv_param + '_deriv--' + data_param.split("--")[-1] for data_param in data_params]
-            deriv_vector_dict = get_values(mock_run = fiducial_run, vals_to_read = deriv_vals_to_get, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
-            deriv_vector = np.array([])
-            for data_deriv_param in deriv_vals_to_get:
-                deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_deriv_param])
-            deriv_matrix = np.zeros(shape = (len(deriv_params), len(deriv_vector)))
-        else:
-            deriv_vals_to_get = [data_param.split("--")[0] + '_' + deriv_param + '_deriv--' + data_param.split("--")[-1] for data_param in data_params]
-            deriv_vector_dict = get_values(mock_run = fiducial_run, vals_to_read = deriv_vals_to_get, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
-            deriv_vector = np.array([])
-            for data_deriv_param in deriv_vals_to_get:
-                deriv_vector = np.append(deriv_vector, deriv_vector_dict[data_deriv_param])
-        
-        deriv_matrix[i] += deriv_vector
+    content = read_kcap_values(mock_run = fiducial_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)  
+    deriv_vals_to_get = []
+    for i, data_param in enumerate(data_params):
+        for j, deriv_param in enumerate(deriv_params):
+            deriv_vals_to_get.append(data_param.split("--")[0] + '_' + deriv_param + '_deriv--' + data_param.split("--")[-1])
     
+    deriv_matrix = content.get_values(vals_to_read = deriv_vals_to_get, output_type = 'as_matrix')    
+    content.close()
     return deriv_matrix
 
-def get_single_data_vector(mock_run, data_params, mocks_dir = None, mocks_name = None, bin_order = None):
-    """
-    Returns a flattened data vector
-    """
-    data_vector_dict = get_values(mock_run = mock_run, vals_to_read = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)
-    data_vector = np.array([])
-    for data_param in data_params:
-        data_vector = np.append(data_vector, data_vector_dict[data_param])
-    
-    return data_vector
-
-def get_fiducial_cov_deriv(fiducial_run, deriv_matrix, deriv_params, mocks_dir = None, mocks_name = None):
-    cov_tensor_shape = list(deriv_matrix.shape)
-    cov_tensor_shape.append(cov_tensor_shape[-1])
-    cov_deriv_tensor = np.zeros(shape = cov_tensor_shape)
-    for i, deriv_param in enumerate(deriv_params):
-        cov_deriv = get_covariance(mock_run = fiducial_run, which_cov = deriv_param, mocks_dir = mocks_dir, mocks_name = mocks_name)
-        cov_deriv_tensor[i] += cov_deriv
-    
-    return cov_deriv_tensor
-
-def get_sim_batch_likelihood(sim_number, mocks_dir = None, mocks_name = None):
-    """
-    Wrapper function to fetch the gaussian likelihood as calculated by KCAP
-    """
-
-    likelihood = np.empty(1)
-    for i in range(sim_number):
-        try:
-            likelihood = np.vstack((likelihood, get_likelihood(mock_run = i, like_name = "loglike_like", mocks_dir = mocks_dir, mocks_name = mocks_name)))
-        except:
-            print("Mock run %s doesn't exist, skipping this likelihood" % (i))
-
-    return likelihood[1:] 
-
-def get_sim_batch_data_vectors(sim_number, data_params, data_vector_length = 270, mocks_dir = None, mocks_name = None):
+def get_sim_batch_data_vectors(sim_number, data_names, mocks_dir = None, mocks_name = None, bin_order = None):
     """
     Fetches the data vector
     """
-    sim_data_vector = np.empty(data_vector_length)
-
     for i in range(sim_number):
         try:
-            data_vector = get_single_data_vector(mock_run = i, data_params = data_params, mocks_dir = mocks_dir, mocks_name = mocks_name)
-            sim_data_vector = np.vstack((sim_data_vector, data_vector))
+            content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
+            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat')
+            content.close()
         except:
             print("Mock run %s doesn't exist, skipping this datavector" % (i))
+            
+        if sim_data_vector:
+            sim_data_vector = np.vstack((sim_data_vector, data_vector))
+        else:
+            sim_data_vector = data_vector
 
     print("Fetched values!")
+    return sim_data_vector
 
-    return sim_data_vector[1:]
-
-def get_sim_batch_thetas(sim_number, theta_names, mocks_dir = None, mocks_name = None):
+def get_sim_batch_params(sim_number, param_names, mocks_dir = None, mocks_name = None, bin_order = None):
     """
     Fetches all of the simulation theta values
     """
-    thetas = np.empty(len(theta_names))
     for i in range(sim_number):
         try:
-            theta = get_params(mock_run = i, vals_to_read = theta_names, mocks_dir = mocks_dir, mocks_name = mocks_name)
-            theta = np.array(list(theta.values()))
-            thetas = np.vstack((thetas, theta))
+            content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
+            param_vector = content.read_params(parameter_list = param_names, output_type = 'as_flat')
+            content.close()
         except:
-            print("Mock run %s doesn't exist, skipping this theta val" % (i))
-    
-    return thetas[1:]
+            print("Mock run %s doesn't exist, skipping this datavector" % (i))
+            
+        if sim_param_vector:
+            sim_param_vector = np.vstack((sim_param_vector, param_vector))
+        else:
+            sim_param_vector = param_vector
 
-def cleanup_folders(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
-                   folders_to_keep = ["cosmological_parameters",
-                                      "bias_parameters",
-                                      "halo_model_parameters",
-                                      "intrinsic_alignment_parameters",
-                                      "nofz_shifts",
-                                      "theory_data_covariance",
-                                      "growth_parameters",
-                                      "priors",
-                                      "shear_xi_minus_binned", 
-                                      "shear_xi_plus_binned", 
-                                      "bandpowers",
-                                      "shear_pcl",
-                                      "shear_pcl_novd"],
-                   files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"]):
-    print("Checking files found first...")
-    clean_method = organise_kcap_output(mock_run_start = mock_run_start, num_mock_runs = num_mock_runs, mocks_dir = mocks_dir, mocks_name = mocks_name, 
-                                        folders_to_keep = folders_to_keep, files_to_remove = files_to_remove)
-    clean_method.extract_all_runs()
-    print("Initiating file cleanup...")
-    clean_method.delete_all_unwanted()
-    clean_method.delete_all_tgz()
-    print("Enjoy that sweet sweet disk space!")
+    print("Fetched values!")
+    return sim_param_vector
 
-def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_name = None,
-                   folders_to_keep = ["cosmological_parameters",
-                                      "bias_parameters",
-                                      "halo_model_parameters",
-                                      "intrinsic_alignment_parameters",
-                                      "nofz_shifts",
-                                      "salmo",
-                                      "salmo_novd",
-                                      "theory_data_covariance",
-                                      "growth_parameters",
-                                      "priors",
-                                      "shear_xi_minus_binned", 
-                                      "shear_xi_plus_binned", 
-                                      "bandpowers",
-                                      "shear_bias",
-                                      "shear_bias_novd",
-                                      "shear_pcl",
-                                      "shear_pcl_novd"],
-                   files_to_remove = ["theory_data_covariance/covariance.txt", "theory_data_covariance/inv_covariance.txt"]):
-    print("Initiating unzip and cleanup afterwards... ")
-    clean_method = organise_kcap_output(mock_run_start = mock_run_start, num_mock_runs = num_mock_runs, mocks_dir = mocks_dir, mocks_name = mocks_name, 
-                                        folders_to_keep = folders_to_keep, files_to_remove = files_to_remove)
-    clean_method.extract_and_delete()
-    print("Enjoy that sweet sweet disk space and your extracted files!")
-    
+def get_sim_batch_data_params(sim_number, param_names, data_names, mocks_dir = None, mocks_name = None, bin_order = None):
+    """
+    Fetches batch of data vectors and parameter values in one go
+    """
+    for i in range(sim_number):
+        try:
+            content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
+            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat')
+            param_vector = content.read_params(parameter_list = param_names, output_type = 'as_flat')
+            content.close()
+        except:
+            print("Mock run %s doesn't exist, skipping this datavector" % (i))
+            
+        if sim_data_vector and sim_param_vector:
+            sim_data_vector = np.vstack((sim_data_vector, data_vector))
+            sim_param_vector = np.vstack((sim_param_vector, param_vector))
+        else:
+            sim_data_vector = data_vector
+            sim_param_vector = param_vector
+
+    print("Fetched values!")
+    return sim_data_vector
+
+def make_tar(mocks_path):
+    new_files_list = glob.glob(mocks_path+'/*/*')
+    content = tarfile.open(mocks_path+'.tgz', 'w:gz')
+    for file in new_files_list:
+        content.add(file)
+    content.close()
+
 if __name__ == "__main__":      
-    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 100, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_43_fiducial_cosmology_sensitivity',
-                        mocks_name = 'kids_1000_mocks')
-   
-    
-    # data_vectors = get_sim_batch_data_vectors(sim_number = 8000, data_params = ['theory_data_covariance--theory'], data_vector_length = 270, 
-    #                                           mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing', mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
-    
-    # np.savetxt('/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing/data_thetas/data_vectors.txt', data_vectors)
-    
-    # thetas = get_sim_batch_thetas(sim_number = 8000, theta_names = ['cosmological_parameters--sigma_8', 
-    #                                                                 'cosmological_parameters--omch2',
-    #                                                                 'intrinsic_alignment_parameters--a',
-    #                                                                 'cosmological_parameters--n_s',
-    #                                                                 'halo_model_parameters--a',
-    #                                                                 'cosmological_parameters--h0',
-    #                                                                 'cosmological_parameters--ombh2',
-    #                                                                 'nofz_shifts--bias_1',
-    #                                                                 'nofz_shifts--bias_2',
-    #                                                                 'nofz_shifts--bias_3',
-    #                                                                 'nofz_shifts--bias_4',
-    #                                                                 'nofz_shifts--bias_5'], 
-    #                               mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing', mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
-    
-    # np.savetxt('/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing/data_thetas/thetas.txt', thetas)
-
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
-    # run_kcap_deriv(mock_run = 0, 
-    #             param_to_vary = "cosmological_parameters--ombh2",
-    #             params_to_fix = ['cosmological_parameters--sigma_8',
-    #                              'intrinsic_alignment_parameters--a',
-    #                              'cosmological_parameters--n_s',
-    #                              'halo_model_parameters--a',
-    #                              'cosmological_parameters--h0',
-    #                              'cosmological_parameters--ombh2',
-    #                              'nofz_shifts--bias_1',
-    #                              'nofz_shifts--bias_2',
-    #                              'nofz_shifts--bias_3',
-    #                              'nofz_shifts--bias_4',
-    #                              'nofz_shifts--bias_5'],
-    #             vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"],
-    #             step_size = 0.01,
-    #             stencil_pts = 5,
-    #             mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data',
-    #             mocks_name = 'glass_fiducial',
-    #             cleanup = 2,
-    #             deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_pipeline.ini', 
-    #             deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values.ini', 
-    #             deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values_list.ini',
-    #             sbatch_file = '/share/splinter/klin/slurm/slurm_glass_derivs.sh'
-    #             )
-
-    # run_omega_m_deriv(mock_run = 0, 
-    #                   params_varied = ["cosmological_parameters--omch2"], 
-    #                   vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"], 
-    #                   mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data', 
-    #                   mocks_name = 'glass_fiducial')
+    run_kcap_deriv(mock_run = 0, 
+                param_to_vary = "cosmological_parameters--ombh2",
+                params_to_fix = ['cosmological_parameters--sigma_8',
+                                 'intrinsic_alignment_parameters--a',
+                                 'cosmological_parameters--n_s',
+                                 'halo_model_parameters--a',
+                                 'cosmological_parameters--h0',
+                                 'cosmological_parameters--ombh2',
+                                 'nofz_shifts--bias_1',
+                                 'nofz_shifts--bias_2',
+                                 'nofz_shifts--bias_3',
+                                 'nofz_shifts--bias_4',
+                                 'nofz_shifts--bias_5'],
+                vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"],
+                step_size = 0.01,
+                stencil_pts = 5,
+                mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data',
+                mocks_name = 'glass_fiducial',
+                cleanup = 2,
+                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values_list.ini',
+                sbatch_file = '/share/splinter/klin/slurm/slurm_glass_derivs.sh'
+                )
