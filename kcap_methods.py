@@ -60,7 +60,7 @@ class read_kcap_values:
         
         return content
     
-    def read_vals(self, vals_to_read, output_type = 'as_dict'):
+    def read_vals(self, vals_to_read, truncate = 0, output_type = 'as_dict'):
         """
         Options are:
         as_dict - returns the values as a dictionary with the keys matched to the value in the input vals_to_read list
@@ -84,7 +84,7 @@ class read_kcap_values:
                     
                     bin_vals_dict = {}
                     for i, file_name in enumerate(files_list):
-                        bin_vals_dict[bin_names[i]] = np.loadtxt(self.content.extractfile(file_name))
+                        bin_vals_dict[bin_names[i]] = np.loadtxt(self.content.extractfile(file_name))[truncate:]
                     
                     vals_array = np.array([])
                     for bin_name in self.bin_order:
@@ -92,7 +92,7 @@ class read_kcap_values:
                 else:
                     try:
                         file_name = [file_name for file_name in self.content.getnames() if val_folder+'/'+val_name in file_name][0]
-                        vals_array = np.loadtxt(self.content.extractfile(file_name))
+                        vals_array = np.loadtxt(self.content.extractfile(file_name))[truncate:]
                     except:
                         raise Exception("Badly defined parameter name %s" % val_names)  
             except:
@@ -137,9 +137,9 @@ class read_kcap_values:
         """
         Adds a list of files to the tar
         """
-        self.content.extractall()
+        self.content.extractall('/')
         self.content.close()
-        
+        print("Writing values to tar...")
         assert isinstance(to_write, list), "to_write needs to be a list"
         assert isinstance(to_write_headers, list), "to_write_headers needs to be a list"
         assert isinstance(file_loc, list), "file_loc needs to be a list"
@@ -149,7 +149,7 @@ class read_kcap_values:
             if file_path[-1] == "/": #make sure the parent directory exists
                 Path(file_path).mkdir(parents=True, exist_ok=True)
             else:
-                Path("/".join(file_path.split("/")[:-1])).mkdir(parents=True, exist_ok=True) 
+                Path("/"+"/".join(file_path.split("/")[:-1])).mkdir(parents=True, exist_ok=True) 
             np.savetxt(file_path, to_write[i], header = to_write_headers[i])
         
         new_files_list = glob.glob(self.mock_path+'/*/*')
@@ -157,6 +157,8 @@ class read_kcap_values:
         for file in new_files_list:
             content.add(file)
         content.close()
+        
+        shutil.rmtree(self.mock_path)
         
         self.content = tarfile.open(self.mock_path+'.tgz', 'r:gz')
     
@@ -199,7 +201,7 @@ class read_kcap_values:
         print("All .tgz files removed!")    
 
 class kcap_deriv(read_kcap_values):
-    def __init__(self, param_to_vary, params_to_fix, vals_to_diff, stencil_pts = 5, step_size = 0.01, 
+    def __init__(self, param_to_vary, params_to_fix, vals_to_diff, stencil_pts = 5, step_size = 0.01, bin_order = None,
                  mock_run = None, mocks_dir = None, mocks_name = None, deriv_dir = None, deriv_name = None, 
                  deriv_ini_file = None, deriv_values_file = None, deriv_values_list_file = None, sbatch_file = None):
         """
@@ -248,31 +250,15 @@ class kcap_deriv(read_kcap_values):
 
         self.param_header, self.param_name = param_to_vary.split("--") 
         self.param_dict = self.read_params(self.parameter_list)
-
-    def check_deriv_ini_settings(self):
-        """
-        Modifies the deriv_values_list.ini file
-        """
-        values_config = cfg.ConfigParser()
         
-        to_change = 0
-        values_config.read(self.deriv_ini_file)
-        if values_config['DEFAULT']['RESULTS_PATH'] == self.deriv_dir:
-            pass
+        if bin_order == None:
+            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
+                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
+                              'bin_3_3', 'bin_4_3', 'bin_5_3',
+                              'bin_4_4', 'bin_5_4',
+                              'bin_5_5']
         else:
-            values_config['DEFAULT']['RESULTS_PATH'] = self.deriv_dir
-            to_change += 1
-            
-        if values_config['DEFAULT']['RESULTS_NAME'] == self.deriv_name:
-            pass
-        else:
-            values_config['DEFAULT']['RESULTS_NAME'] = self.deriv_name
-            to_change += 1
-
-        if to_change > 0:
-            print("Setting a few deriv pipeline ini file values...")
-            with open(self.deriv_ini_file, 'w') as configfile:
-                values_config.write(configfile)
+            self.bin_order = bin_order
 
     def write_deriv_ini_values(self):
         """
@@ -292,8 +278,8 @@ class kcap_deriv(read_kcap_values):
             else:
                 raise Exception("Unknown parameter specified in params_to_fix")
         
-        dx_array = np.arange(stencil_pts)
-        middle_index = int((stencil_pts - 1)/2)
+        dx_array = np.arange(self.stencil_pts)
+        middle_index = int((self.stencil_pts - 1)/2)
         dx_array = dx_array - dx_array[middle_index]
         dx_array = np.delete(dx_array, middle_index)
 
@@ -329,33 +315,40 @@ class kcap_deriv(read_kcap_values):
             values_config.write(configfile)
 
     def run_deriv_kcap(self, mpi_opt = False, cluster = True):
-        self.check_ini_settings(ini_file_to_check = 'deriv_file')
         if mpi_opt == True:
             subprocess.run(["mpirun", "-n" , str(stencil_points-1), "--use-hwthread-cpus", "cosmosis", "--mpi", self.deriv_ini_file])
         elif cluster == True:
-            subprocess.run(["sbatch", self.sbatch_file])
+            output = subprocess.run(["sbatch", self.sbatch_file], stdout = subprocess.PIPE, text=True)
+            text_out = output.stdout
+            jobid = text_out.split(" ")[-1].rstrip()
+            print("------------------------")
+            print("Submitted slurm job with jobid: "+jobid)
+            print("------------------------")
+            return jobid
         elif mpi_opt == False:
             subprocess.run(["cosmosis", self.deriv_ini_file])
         else: 
             raise Exception("Failed to initialise cosmosis pipeline for derivatives")
     
-    def poll_cluster_finished(self, stencil_pts = 5):
+    def poll_cluster_finished(self, jobid):
         start_time = time.time()
         elapsed = time.time() - start_time
         finished = False
-        while elapsed <= 86400. and finished != True:
-            if len(glob.glob(self.deriv_dir+'/'+self.deriv_name+'_*.tgz')) < stencil_pts - 1:
-                time.sleep(15)
-            elif len(glob.glob(self.deriv_dir+'/'+self.deriv_name+'_*.tgz')) == stencil_pts - 1:
+        while elapsed <= 1200000. and finished != True:
+            try: 
+                subprocess.check_output(["squeue", "-j", jobid])
+                time.sleep(30)
+            except:
+                print("Simulations finished!")
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(30)
+        time.sleep(40)
 
     def fetch_dx_values(self):
         dx_list = []
         num_deriv_pts = self.stencil_pts - 1
         if len(glob.glob(self.deriv_dir+'/'+self.deriv_name+'_*.tgz')) == num_deriv_pts:
-            for deriv_run in range(stencil_pts - 1):
+            for deriv_run in range(self.stencil_pts - 1):
                 deriv_tar = read_kcap_values(mock_run = deriv_run, mocks_dir = self.deriv_dir, mocks_name = self.deriv_name)
                 vals_dict = deriv_tar.read_vals(vals_to_read = self.vals_to_diff)
                 dx_list.append(vals_dict)
@@ -366,7 +359,7 @@ class kcap_deriv(read_kcap_values):
         for val_to_diff in self.vals_to_diff:
             val_array = np.array([])
             for i in range(num_deriv_pts):
-                dx_dict[dx_dict] = np.append(val_array, dx_list[i][val_to_diff])
+                val_array = np.append(val_array, dx_list[i][val_to_diff])
             val_array = val_array.reshape(num_deriv_pts, -1)
             dx_dict[val_to_diff] = val_array
         
@@ -389,7 +382,7 @@ class kcap_deriv(read_kcap_values):
             raise Exception("Invalid stencil number inputted")           
         
         dx_dict = self.fetch_dx_values()
-        print("All values needed for %s derivatives wrt to %s found, now calculating..." % (deriv_vals, self.param_to_vary))
+        print("All values needed for %s derivatives wrt to %s found, now calculating..." % (self.vals_to_diff, self.param_to_vary))
         deriv_dict = {}
         for val_to_diff in self.vals_to_diff:
             first_deriv_vals = np.dot(stencil_coeffs, dx_dict[val_to_diff])/self.abs_step_size
@@ -402,21 +395,20 @@ class kcap_deriv(read_kcap_values):
         to_write = []
         to_write_headers = []
         file_locs = []
-        
+        print(self.mock_path)
         for val_to_diff in self.vals_to_diff:
             val_to_diff_head, val_to_diff_name = val_to_diff.split(sep = "--")
             if "bin" in val_to_diff: # This option saves the files that should be binned into their respective bin folders to maintain folder/file structure
                 deriv_vals = deriv_dict[val_to_diff].reshape((len(self.bin_order), -1))
                 for i, vals in enumerate(deriv_vals):
                     to_write.append(vals)
-                    to_write_headers.append('deriv values for {0} wrt {1} with relative stepsize of {3} and absolute stepsize of {4}'.format(val_to_diff, self.param_to_vary, self.step_size, self.abs_step_size))
-                    file_locs.append(self.mock_path+'/'+val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+self.bin_order[i]+'.txt')
+                    to_write_headers.append('deriv values for {0} wrt {1} with relative stepsize of {2} and absolute stepsize of {3}'.format(val_to_diff, self.param_to_vary, self.step_size, self.abs_step_size))
+                    file_locs.append(val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+self.bin_order[i]+'.txt')
             else:
                 to_write.append(deriv_dict[val_to_diff])
-                to_write_headers.append('deriv values for {0} wrt {1} with relative stepsize of {3} and absolute stepsize of {4}'.format(val_to_diff, self.param_to_vary, self.step_size, self.abs_step_size))
-                file_locs.append(self.mock_path+'/'+val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+val_to_diff_name+'.txt')
-        
-        self.write_to_tar(to_write, to_write_headers, file_loc)
+                to_write_headers.append('deriv values for {0} wrt {1} with relative stepsize of {2} and absolute stepsize of {3}'.format(val_to_diff, self.param_to_vary, self.step_size, self.abs_step_size))
+                file_locs.append(val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+val_to_diff_name+'.txt')
+        self.write_to_tar(to_write, to_write_headers, file_locs)
             
     def check_existing_derivs(self):
         print("Checking if the corresponding derivatives exist...")
@@ -424,15 +416,16 @@ class kcap_deriv(read_kcap_values):
             val_to_diff_head, val_to_diff_name = val_to_diff.split(sep = "--")
             if 'bin' in val_to_diff_name:
                 num_base = len(self.bin_order)
-                num_found = len([bin_file for bin_file in self.content.getnames() if val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+vall_to_diff_name in bin_file])
+                num_found = len([bin_file for bin_file in self.content.getnames() if val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+val_to_diff_name in bin_file])
             else:
-                num_base = len([files for files in self.content.getnames() if val_to_diff_head+'/'+vall_to_diff_name in files])
-                num_found = len([files for files in self.content.getnames() if val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+vall_to_diff_name in files])
+                num_base = len([files for files in self.content.getnames() if val_to_diff_head+'/'+val_to_diff_name in files])
+                num_found = len([files for files in self.content.getnames() if val_to_diff_head+'_'+self.param_to_vary+'_deriv/'+val_to_diff_name in files])
             if num_base == num_found:
                 print("Files for %s numerical derivative values wrt to %s found." % (val_to_diff_head, self.param_to_vary))
                 pass
             else:
-                raise Exception("Missing derivatives for %s wrt to %s." % (val_to_diff_head, self.param_to_vary))
+                print("Missing derivatives for %s wrt to %s." % (val_to_diff_head, self.param_to_vary))
+                return False
         
         print("All wanted numerical derivative values found!")
         return True
@@ -454,12 +447,12 @@ class kcap_deriv(read_kcap_values):
             raise Exception("Not all files found, exiting cleanup. Please manually inspect!")     
 
     def omega_m_deriv(self):       
-        h = self.read_param_from_txt_file(file_location = self.mocks_dir+'/'+self.mocks_name+'_'+self.mock_run+'/cosmological_parameters/values.txt', parameter = 'h0')
+        h = self.read_params(parameter_list = ['cosmological_parameters--h0'], output_type = 'as_flat')
         
         omch2_deriv_names = []
         for val_to_diff in self.vals_to_diff: # make a list of the names of the variables to fetch
             val_to_diff_head, val_to_diff_name = val_to_diff.split(sep = "--")
-            omch2_deriv_names.append(self.mock_path+'/'+val_to_diff_head+'_'+self.param_to_vary+'_deriv--'+val_to_diff_name)
+            omch2_deriv_names.append(val_to_diff_head+'_'+self.param_to_vary+'_deriv--'+val_to_diff_name)
             
         omch_deriv = self.read_vals(vals_to_read = omch2_deriv_names)
         to_write = []
@@ -475,14 +468,14 @@ class kcap_deriv(read_kcap_values):
                 for i, vals in enumerate(deriv_vals):
                     to_write.append(vals)
                     to_write_headers.append('deriv values for {0} wrt {1} derived from omch2 deriv'.format(val_to_diff, self.param_to_vary))
-                    file_locs.append(self.mock_path+'/'+val_to_diff_head+'_cosmological_parameters--omega_m_deriv/'+self.bin_order[i]+'.txt')
+                    file_locs.append(val_to_diff_head+'_cosmological_parameters--omega_m_deriv/'+self.bin_order[i]+'.txt')
             else:
                 to_write.append(omega_m_deriv_vals)
                 to_write_headers.append('deriv values for {0} wrt {1} derived from omch2 deriv'.format(val_to_diff, self.param_to_vary))
-                file_locs.append(self.mock_path+'/'+val_to_diff_head+'_cosmological_parameters--omega_m_deriv/'+val_to_diff_name+'.txt')
+                file_locs.append(val_to_diff_head+'_cosmological_parameters--omega_m_deriv/'+val_to_diff_name+'.txt')
                 
-            print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (deriv_vals))
-            self.write_to_tar(to_write, to_write_headers, file_loc)
+            print("All values needed for %s derivatives wrt to omega_m calculated, saving to file..." % (val_to_diff))
+            self.write_to_tar(to_write, to_write_headers, file_locs)
             print("Derivatives saved succesfully")
 
 class kcap_delfi():
@@ -616,7 +609,7 @@ class kcap_delfi():
                 print("Simulations finished!")
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(40)
+        time.sleep(10)
     
     def save_sims(self):
         if self.save_folder:
@@ -724,16 +717,16 @@ def run_kcap_deriv(param_to_vary, params_to_fix, vals_to_diff, step_size, stenci
         print("All files found for these parameters, skipping this particular deriv run")
     else:
         print("Not all values found, continuing script...")
-        kcap_run.check_deriv_ini_settings()
         kcap_run.write_deriv_ini_values()
-        kcap_run.run_deriv_kcap(mpi_opt = False, cluster = True)
-        kcap_run.poll_cluster_finished(stencil_pts = stencil_pts)
+        jobid = kcap_run.run_deriv_kcap(mpi_opt = False, cluster = True)
+        kcap_run.poll_cluster_finished(jobid = jobid)
         deriv_dict = kcap_run.calc_deriv_values()
         kcap_run.save_deriv_values(deriv_dict)
         if param_to_vary == 'cosmological_parameters--omch2':
             kcap_run.omega_m_deriv()
+            
         if cleanup == True:
-            kcap_run.clean_deriv_folder()
+            kcap_run.cleanup_deriv_folder()
 
 def run_omega_m_deriv(mock_run, params_varied, vals_to_diff, mocks_dir = None, mocks_name = None):
     kcap_run = kcap_deriv(mock_run = mock_run, 
@@ -749,18 +742,18 @@ def run_omega_m_deriv(mock_run, params_varied, vals_to_diff, mocks_dir = None, m
         print("Not all values found, continuing script...")
         kcap_run.first_omega_m_deriv(params_varied)
 
-def calc_inv_covariance(covariance, which_cov = "eigen"):
-    if which_cov == "symmetrised":
+def calc_inv_covariance(covariance, method = "eigen"):
+    if method == "symmetrised":
         # Averaging the inverse covariance
         inv_covariance = np.linalg.inv(covariance)
         inv_covariance = (inv_covariance + inv_covariance.T)/2
-    elif which_cov == "cholesky":
+    elif method == "cholesky":
         # Cholesky method for calculating the inverse covariance
         cholesky_decom = np.linalg.cholesky(covariance)
         identity = np.identity(len(covariance))
         y = np.linalg.solve(cholesky_decom, identity)
         inv_covariance = np.linalg.solve(cholesky_decom.T, y)
-    elif which_cov == "eigen":
+    elif method == "eigen":
         # Eigenvalue decomposition method of calculating the inverse covariance
         eigenvals, eigenvectors = np.linalg.eig(covariance)
         inv_eigenvals = np.zeros(shape = covariance.shape)
@@ -770,7 +763,7 @@ def calc_inv_covariance(covariance, which_cov = "eigen"):
             else:
                 pass
         inv_covariance = np.dot(eigenvectors, np.dot(inv_eigenvals, eigenvectors.T))
-    elif which_cov == "suppressed":
+    elif method == "suppressed":
         for i, cov_slice in enumerate(covariance):
             for j, val in enumerate(cov_slice):
                 covariance[i][j] = val * 0.9 ** (abs(i-j))
@@ -780,34 +773,34 @@ def calc_inv_covariance(covariance, which_cov = "eigen"):
         
     return inv_covariance
 
-def get_fiducial_deriv(deriv_params, data_params, fiducial_run = 0, mocks_dir = None, mocks_name = None, bin_order = None):
+def get_fiducial_deriv(deriv_params, data_params, fiducial_run = None, mocks_dir = None, mocks_name = None, bin_order = None, truncate = 0):
     content = read_kcap_values(mock_run = fiducial_run, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order)  
     deriv_vals_to_get = []
     for i, data_param in enumerate(data_params):
         for j, deriv_param in enumerate(deriv_params):
             deriv_vals_to_get.append(data_param.split("--")[0] + '_' + deriv_param + '_deriv--' + data_param.split("--")[-1])
     
-    deriv_matrix = content.get_values(vals_to_read = deriv_vals_to_get, output_type = 'as_matrix')    
+    deriv_matrix = content.read_vals(vals_to_read = deriv_vals_to_get, output_type = 'as_matrix', truncate = truncate)    
     content.close()
     return deriv_matrix
 
-def get_sim_batch_data_vectors(sim_number, data_names, mocks_dir = None, mocks_name = None, bin_order = None):
+def get_sim_batch_data_vectors(sim_number, data_names, mocks_dir = None, mocks_name = None, bin_order = None, truncate = 0):
     """
     Fetches the data vector
     """
     for i in range(sim_number):
         try:
             content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
-            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat')
+            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat', truncate = truncate)
             content.close()
+            try:
+                sim_data_vector = np.vstack((sim_data_vector, data_vector))
+            except:
+                sim_data_vector = data_vector
+            print("Fetched from mock run %s" % (i))
         except:
             print("Mock run %s doesn't exist, skipping this datavector" % (i))
             
-        if sim_data_vector:
-            sim_data_vector = np.vstack((sim_data_vector, data_vector))
-        else:
-            sim_data_vector = data_vector
-
     print("Fetched values!")
     return sim_data_vector
 
@@ -820,36 +813,36 @@ def get_sim_batch_params(sim_number, param_names, mocks_dir = None, mocks_name =
             content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
             param_vector = content.read_params(parameter_list = param_names, output_type = 'as_flat')
             content.close()
+            try:
+                sim_param_vector = np.vstack((sim_param_vector, param_vector))
+            except:
+                sim_param_vector = param_vector
+            print("Fetched from mock run %s" % (i))
         except:
             print("Mock run %s doesn't exist, skipping this datavector" % (i))
-            
-        if sim_param_vector:
-            sim_param_vector = np.vstack((sim_param_vector, param_vector))
-        else:
-            sim_param_vector = param_vector
 
     print("Fetched values!")
     return sim_param_vector
 
-def get_sim_batch_data_params(sim_number, param_names, data_names, mocks_dir = None, mocks_name = None, bin_order = None):
+def get_sim_batch_data_params(sim_number, param_names, data_names, mocks_dir = None, mocks_name = None, bin_order = None, truncate = 0):
     """
     Fetches batch of data vectors and parameter values in one go
     """
     for i in range(sim_number):
         try:
             content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
-            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat')
+            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat', truncate = truncate)
             param_vector = content.read_params(parameter_list = param_names, output_type = 'as_flat')
             content.close()
+            try:
+                sim_data_vector = np.vstack((sim_data_vector, data_vector))
+                sim_param_vector = np.vstack((sim_param_vector, param_vector))
+            except:
+                sim_data_vector = data_vector
+                sim_param_vector = param_vector
+            print("Fetched from mock run %s" % (i))
         except:
             print("Mock run %s doesn't exist, skipping this datavector" % (i))
-            
-        if sim_data_vector and sim_param_vector:
-            sim_data_vector = np.vstack((sim_data_vector, data_vector))
-            sim_param_vector = np.vstack((sim_param_vector, param_vector))
-        else:
-            sim_data_vector = data_vector
-            sim_param_vector = param_vector
 
     print("Fetched values!")
     return sim_data_vector
@@ -861,30 +854,305 @@ def make_tar(mocks_path):
         content.add(file)
     content.close()
 
-if __name__ == "__main__":      
+if __name__ == "__main__": 
+    # make_tar('/share/lustre/klin/kcap_out/kids_fiducial_data_mocks/glass_fiducial')
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
-
-    run_kcap_deriv(mock_run = 0, 
-                param_to_vary = "cosmological_parameters--ombh2",
-                params_to_fix = ['cosmological_parameters--sigma_8',
-                                 'intrinsic_alignment_parameters--a',
-                                 'cosmological_parameters--n_s',
-                                 'halo_model_parameters--a',
-                                 'cosmological_parameters--h0',
-                                 'cosmological_parameters--ombh2',
-                                 'nofz_shifts--bias_1',
-                                 'nofz_shifts--bias_2',
-                                 'nofz_shifts--bias_3',
-                                 'nofz_shifts--bias_4',
-                                 'nofz_shifts--bias_5'],
-                vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"],
-                step_size = 0.01,
-                stencil_pts = 5,
-                mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data',
-                mocks_name = 'glass_fiducial',
-                cleanup = 2,
-                deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_pipeline.ini', 
-                deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values.ini', 
-                deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values_list.ini',
-                sbatch_file = '/share/splinter/klin/slurm/slurm_glass_derivs.sh'
-                )
+    run_kcap_deriv(param_to_vary = 'cosmological_parameters--sigma_8_input',
+                   params_to_fix = ['cosmological_parameters--omch2',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--n_s',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'intrinsic_alignment_parameters--a',
+                   params_to_fix = ['cosmological_parameters--sigma_8_input',
+                                    'cosmological_parameters--omch2',
+                                    'cosmological_parameters--n_s',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'cosmological_parameters--n_s',
+                   params_to_fix = ['cosmological_parameters--sigma_8_input',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--omch2',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'halo_model_parameters--a',
+                   params_to_fix = ['cosmological_parameters--omch2',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--n_s',
+                                    'cosmological_parameters--sigma_8_input',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'cosmological_parameters--h0',
+                   params_to_fix = ['cosmological_parameters--sigma_8_input',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--n_s',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--omch2',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'cosmological_parameters--ombh2',
+                   params_to_fix = ['cosmological_parameters--sigma_8_input',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--n_s',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--omch2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = True,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    run_kcap_deriv(param_to_vary = 'cosmological_parameters--omch2',
+                   params_to_fix = ['cosmological_parameters--sigma_8_input',
+                                    'intrinsic_alignment_parameters--a',
+                                    'cosmological_parameters--n_s',
+                                    'halo_model_parameters--a',
+                                    'cosmological_parameters--h0',
+                                    'cosmological_parameters--ombh2',
+                                    'nofz_shifts--bias_1',
+                                    'nofz_shifts--bias_2',
+                                    'nofz_shifts--bias_3',
+                                    'nofz_shifts--bias_4',
+                                    'nofz_shifts--bias_5'],
+                   vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+                   step_size = 0.1,
+                   stencil_pts = 5,
+                   mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+                   mocks_name = 'glass_fiducial', 
+                   cleanup = False,
+                   deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+                   deriv_name = 'glass_salmo_deriv_sims', 
+                   deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+                   deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+                   deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+                   sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    # run_kcap_deriv(param_to_vary = 'nofz_shifts--bias_1',
+    #                params_to_fix = ['cosmological_parameters--sigma_8_input',
+    #                                 'intrinsic_alignment_parameters--a',
+    #                                 'cosmological_parameters--n_s',
+    #                                 'halo_model_parameters--a',
+    #                                 'cosmological_parameters--h0',
+    #                                 'cosmological_parameters--ombh2',
+    #                                 'cosmological_parameters--omch2',
+    #                                 'nofz_shifts--bias_2',
+    #                                 'nofz_shifts--bias_3',
+    #                                 'nofz_shifts--bias_4',
+    #                                 'nofz_shifts--bias_5'],
+    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                step_size = 0.01,
+    #                stencil_pts = 5,
+    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+    #                mocks_name = 'glass_fiducial', 
+    #                cleanup = True,
+    #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+    #                deriv_name = 'glass_salmo_deriv_sims', 
+    #                deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+    #                deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+    #                deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+    #                sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    # run_kcap_deriv(param_to_vary = 'nofz_shifts--bias_2',
+    #                params_to_fix = ['cosmological_parameters--sigma_8_input',
+    #                                 'intrinsic_alignment_parameters--a',
+    #                                 'cosmological_parameters--n_s',
+    #                                 'halo_model_parameters--a',
+    #                                 'cosmological_parameters--h0',
+    #                                 'cosmological_parameters--ombh2',
+    #                                 'nofz_shifts--bias_1',
+    #                                 'cosmological_parameters--omch2',
+    #                                 'nofz_shifts--bias_3',
+    #                                 'nofz_shifts--bias_4',
+    #                                 'nofz_shifts--bias_5'],
+    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                step_size = 0.01,
+    #                stencil_pts = 5,
+    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+    #                mocks_name = 'glass_fiducial', 
+    #                cleanup = True,
+    #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+    #                deriv_name = 'glass_salmo_deriv_sims', 
+    #                deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+    #                deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+    #                deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+    #                sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    # run_kcap_deriv(param_to_vary = 'nofz_shifts--bias_3',
+    #                params_to_fix = ['cosmological_parameters--sigma_8_input',
+    #                                 'intrinsic_alignment_parameters--a',
+    #                                 'cosmological_parameters--n_s',
+    #                                 'halo_model_parameters--a',
+    #                                 'cosmological_parameters--h0',
+    #                                 'cosmological_parameters--ombh2',
+    #                                 'nofz_shifts--bias_1',
+    #                                 'nofz_shifts--bias_2',
+    #                                 'cosmological_parameters--omch2',
+    #                                 'nofz_shifts--bias_4',
+    #                                 'nofz_shifts--bias_5'],
+    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                step_size = 0.01,
+    #                stencil_pts = 5,
+    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+    #                mocks_name = 'glass_fiducial', 
+    #                cleanup = True,
+    #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+    #                deriv_name = 'glass_salmo_deriv_sims', 
+    #                deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+    #                deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+    #                deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+    #                sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    # run_kcap_deriv(param_to_vary = 'nofz_shifts--bias_4',
+    #                params_to_fix = ['cosmological_parameters--sigma_8_input',
+    #                                 'intrinsic_alignment_parameters--a',
+    #                                 'cosmological_parameters--n_s',
+    #                                 'halo_model_parameters--a',
+    #                                 'cosmological_parameters--h0',
+    #                                 'cosmological_parameters--ombh2',
+    #                                 'nofz_shifts--bias_1',
+    #                                 'nofz_shifts--bias_2',
+    #                                 'nofz_shifts--bias_3',
+    #                                 'cosmological_parameters--omch2',
+    #                                 'nofz_shifts--bias_5'],
+    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                step_size = 0.01,
+    #                stencil_pts = 5,
+    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+    #                mocks_name = 'glass_fiducial', 
+    #                cleanup = True,
+    #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+    #                deriv_name = 'glass_salmo_deriv_sims', 
+    #                deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+    #                deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+    #                deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+    #                sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
+    
+    # run_kcap_deriv(param_to_vary = 'nofz_shifts--bias_5',
+    #                params_to_fix = ['cosmological_parameters--sigma_8_input',
+    #                                 'intrinsic_alignment_parameters--a',
+    #                                 'cosmological_parameters--n_s',
+    #                                 'halo_model_parameters--a',
+    #                                 'cosmological_parameters--h0',
+    #                                 'cosmological_parameters--ombh2',
+    #                                 'nofz_shifts--bias_1',
+    #                                 'nofz_shifts--bias_2',
+    #                                 'nofz_shifts--bias_3',
+    #                                 'nofz_shifts--bias_4',
+    #                                 'cosmological_parameters--omch2'],
+    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                step_size = 0.01,
+    #                stencil_pts = 5,
+    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
+    #                mocks_name = 'glass_fiducial', 
+    #                cleanup = True,
+    #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
+    #                deriv_name = 'glass_salmo_deriv_sims', 
+    #                deriv_ini_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/glass_salmo_deriv_pipeline_pcl.ini', 
+    #                deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
+    #                deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini',
+    #                sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')

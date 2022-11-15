@@ -160,12 +160,6 @@ def main(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, m
     write_file(input_array = compressed_data[-1], file_location = file_loc, file_name = 'score_compressed_data')
     write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
 
-def calculate_fisher(data_params, deriv_params, fiducial_mocks_dir, fiducial_mocks_name, fiducial_run, file_loc, file_name = 'fisher_matrix', which_cov = "theory_data_covariance--covariance"):
-    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = which_cov, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
-    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
-    fisher_matrix = calc_fisher(inv_covariance = inv_covariance , deriv_matrix = deriv_matrix)
-    write_file(input_array = fisher_matrix, file_location = file_loc, file_name = file_name)
-
 def cov_varied_check(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, mocks_name, sim_number, covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances/*", 
                      fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
                      data_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', data_mocks_name = 'kids_1000_cosmology_data', data_run = 0, 
