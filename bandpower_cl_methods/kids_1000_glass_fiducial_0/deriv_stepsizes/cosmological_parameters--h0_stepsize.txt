@@ -1,2 +1,0 @@
-cosmological_parameters--h0_relative_stepsize=0.01
-cosmological_parameters--h0_absolute_stepsize=0.00674

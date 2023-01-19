@@ -1,2 +1,0 @@
-intrinsic_alignment_parameters--a_relative_stepsize=0.01
-intrinsic_alignment_parameters--a_absolute_stepsize=0.00974

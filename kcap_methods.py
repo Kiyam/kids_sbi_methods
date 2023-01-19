@@ -5,8 +5,6 @@ import os
 import glob
 import tarfile
 import shutil
-import errno
-import re
 import time
 import pyDOE as pydoe
 from scipy.stats.distributions import norm
@@ -88,7 +86,10 @@ class read_kcap_values:
                     
                     vals_array = np.array([])
                     for bin_name in self.bin_order:
-                        vals_array = np.append(vals_array, bin_vals_dict[bin_name])
+                        try:
+                            vals_array = np.append(vals_array, bin_vals_dict[bin_name])
+                        except:
+                            vals_array = np.append(vals_array, bin_vals_dict[[x for x in bin_vals_dict.keys() if bin_name in x][0]])
                 else:
                     try:
                         file_name = [file_name for file_name in self.content.getnames() if val_folder+'/'+val_name in file_name][0]
@@ -199,7 +200,7 @@ class read_kcap_values:
             os.remove(tgz_file)
             print("Removed %s" %str(tgz_file))
         print("All .tgz files removed!")    
-
+    
 class kcap_deriv(read_kcap_values):
     def __init__(self, param_to_vary, params_to_fix, vals_to_diff, stencil_pts = 5, step_size = 0.01, bin_order = None,
                  mock_run = None, mocks_dir = None, mocks_name = None, deriv_dir = None, deriv_name = None, 
@@ -724,7 +725,6 @@ def run_kcap_deriv(param_to_vary, params_to_fix, vals_to_diff, step_size, stenci
         kcap_run.save_deriv_values(deriv_dict)
         if param_to_vary == 'cosmological_parameters--omch2':
             kcap_run.omega_m_deriv()
-            
         if cleanup == True:
             kcap_run.cleanup_deriv_folder()
 
@@ -847,16 +847,41 @@ def get_sim_batch_data_params(sim_number, param_names, data_names, mocks_dir = N
     print("Fetched values!")
     return sim_data_vector, sim_param_vector
 
-def make_tar(mocks_path):
+def make_tar(mocks_path, cleanup = False):
     new_files_list = glob.glob(mocks_path+'/*/*')
     content = tarfile.open(mocks_path+'.tgz', 'w:gz')
     for file in new_files_list:
         content.add(file)
     content.close()
+    if cleanup == True:
+        shutil.rmtree(mocks_path)
 
-if __name__ == "__main__": 
-    make_tar('/share/data1/klin/kcap_out/kids_fiducial_data_mocks/kids_1000_cosmology_data')
-    make_tar('/share/data1/klin/kcap_out/kids_fiducial_data_mocks/kids_1000_cosmology_fiducial')
+def move_tar(source, dest, copy = False):
+    content = tarfile.open(source+'.tgz', 'r:gz')
+    content.extractall('/')
+    shutil.move(source, dest)
+    make_tar(dest, cleanup = True)
+    if copy == False:
+        shutil.rmtree(source + '.tgz')
+
+if __name__ == "__main__":
+    # make_tar('/share/lustre/klin/kcap_out/kids_fiducial_data_mocks/glass_fiducial')
+    # move_tar('/share/lustre/klin/kcap_out/kids_fiducial_data_mocks/glass_fiducial', '/share/lustre/klin/kcap_out/deriv_tests/decomposed/glass_mocks_omch2', copy = True)
+    
+    step_sizes = np.array([])
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.01 * (i+1):.5f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.001 * (i+1):.6f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.0001 * (i+1):.7f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.00001 * (i+1):.9f}") 
+    step_sizes = np.append(step_sizes, 0.1)
+    for val in step_sizes:
+        move_tar('/share/lustre/klin/kcap_out/kids_fiducial_data_mocks/glass_fiducial', '/share/lustre/klin/kcap_out/deriv_tests/glass_mocks_'+str(val)+'_stepsize_deriv', copy = True)
+ 
+    
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
     # run_kcap_deriv(param_to_vary = 'cosmological_parameters--sigma_8_input',
     #                params_to_fix = ['cosmological_parameters--omch2',
@@ -870,8 +895,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -895,8 +920,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -920,8 +945,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -945,8 +970,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -970,8 +995,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -995,8 +1020,8 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
     #                mocks_name = 'glass_fiducial', 
@@ -1020,11 +1045,11 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
-    #                step_size = 0.1,
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
+    #                step_size = 0.001,
     #                stencil_pts = 5,
-    #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
-    #                mocks_name = 'glass_fiducial', 
+    #                mocks_dir = '/share/lustre/klin/kcap_out/deriv_tests/decomposed',
+    #                mocks_name = 'glass_mocks_omch2', 
     #                cleanup = False,
     #                deriv_dir = '/share/lustre/klin/kcap_out/kids_1000_mock_derivatives', 
     #                deriv_name = 'glass_salmo_deriv_sims', 
@@ -1045,7 +1070,7 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
     #                step_size = 0.01,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
@@ -1070,7 +1095,7 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
     #                step_size = 0.01,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
@@ -1095,7 +1120,7 @@ if __name__ == "__main__":
     #                                 'cosmological_parameters--omch2',
     #                                 'nofz_shifts--bias_4',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
     #                step_size = 0.01,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
@@ -1120,7 +1145,7 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'cosmological_parameters--omch2',
     #                                 'nofz_shifts--bias_5'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
     #                step_size = 0.01,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',
@@ -1145,7 +1170,7 @@ if __name__ == "__main__":
     #                                 'nofz_shifts--bias_3',
     #                                 'nofz_shifts--bias_4',
     #                                 'cosmological_parameters--omch2'],
-    #                vals_to_diff = ["shear_pcl--bin", "shear_pcl_novd--bin"],
+    #                vals_to_diff = ["bandpowers--bandpowers", "bandpowers_novd--bandpowers"],
     #                step_size = 0.01,
     #                stencil_pts = 5,
     #                mocks_dir = '/share/lustre/klin/kcap_out/kids_fiducial_data_mocks',

@@ -55,8 +55,6 @@ def calc_and_plot(param_1_index, param_2_index, param_names, fisher_matrix, fidu
                         x_label = param_names[param_1_index], y_label = param_names[param_2_index],
                         x_lims = [x_lim_lower, x_lim_max], y_lims = [y_lim_lower, y_lim_max])
 
-
-
 def triangle_plot(param_names, fisher_matrix, fiducial_params, lower_prior, upper_prior, results_directory = None):
     confidence_coeffs = [1.52, 2.48, 3.44]
     colors = ['#CCF1FF', '#E0D7FF', '#FFCCE1']
