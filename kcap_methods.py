@@ -870,13 +870,3 @@ def move_tar(source, dest, copy = False):
             os.remove(source + '.tgz')  # remove the file
         elif os.path.isdir(source):
             shutil.rmtree(source)  # remove dir and all contains
-
-if __name__ == "__main__":
-    # make_tar('/share/lustre/klin/kcap_out/kids_fiducial_data_mocks/glass_fiducial')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/aia_decomposed/glass_mocks_aia')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/h0_decomposed/glass_mocks_h0')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/halo_a_decomposed/glass_mocks_halo_a')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/n_s_decomposed/glass_mocks_n_s')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/ombh2_decomposed/glass_mocks_ombh2')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/omch2_decomposed/glass_mocks_omch2')
-    make_tar('/share/lustre/klin/kcap_out/deriv_tests/decomposed_0.01/sigma_8_decomposed/glass_mocks_sigma_8')

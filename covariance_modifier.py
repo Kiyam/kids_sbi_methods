@@ -24,20 +24,4 @@ def wishart_noise(covariance, df):
     return sampled_covariance
 
 if __name__ == "__main__":
-    covariance = kcap_methods.get_covariance(mock_run = 0, which_cov = "covariance", mocks_dir = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks", mocks_name = "kids_1000_cosmology_fiducial")
-    file_location = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances_wishart_batch"
-
-    # for factor in np.arange(1.0, 2.1, 0.1):
-    #     new_covariance = suppress_diagonals(covariance = covariance, suppression_type = "power_increasing", suppression_factor = factor)
-    #     outfile = file_location + '/power_increasing_covariance_' + str(factor) + '.dat'
-    #     Path(file_location).mkdir(parents=True, exist_ok=True)
-    #     np.savetxt(outfile, new_covariance)
     
-    for factor in np.geomspace(300, 10000, 15):
-        repeat_factor = 5
-        for i in range(repeat_factor):
-            df = int(factor)
-            new_covariance = wishart_noise(covariance = covariance, df = df)
-            outfile = file_location + '/wishart_' + str(df) + '_' + str(i) + '.dat'
-            Path(file_location).mkdir(parents=True, exist_ok=True)
-            np.savetxt(outfile, new_covariance)
