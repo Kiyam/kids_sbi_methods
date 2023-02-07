@@ -351,5 +351,3 @@ if __name__ == "__main__":
                          deriv_values_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values.ini', 
                          deriv_values_list_file = '/share/lustre/klin/kids_sbi/runs/sbi_config/kids_glass_deriv_values_list.ini', 
                          sbatch_file = '/share/rcifdata/klin/sbi_sim_deriv.sh')
-
-#0.0001

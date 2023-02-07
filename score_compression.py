@@ -164,6 +164,46 @@ def main(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, m
     write_file(input_array = compressed_data, file_location = file_loc, file_name = 'compressed_score')
     write_file(input_array = compressed_data[-1], file_location = file_loc, file_name = 'score_compressed_data')
     write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
+    
+def main_without_fetch(deriv_params, data_params, deriv_data_params, mock_data_params, theta_names, theta_file, data_vector_file, covariance, linear = True,
+         fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
+         data_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', data_mocks_name = 'kids_1000_cosmology_data', data_run = 0,
+         compressed_file_loc = None, compressed_name = 'compressed_data'):
+
+    inv_covariance = kcap_methods.calc_inv_covariance(covariance)
+    
+    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = deriv_data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    fid_vector = kcap_methods.get_single_data_vector(mock_run = fiducial_run, data_params = deriv_data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+
+    data_vector = kcap_methods.get_single_data_vector(mock_run = data_run, data_params = mock_data_params, mocks_dir = data_mocks_dir, mocks_name = data_mocks_name)
+    data_theta = np.array(list(kcap_methods.get_params(mock_run = data_run, vals_to_read = theta_names, mocks_dir = data_mocks_dir, mocks_name = data_mocks_name).values()))
+
+    sim_thetas = np.genfromtxt(theta_file)
+    sim_data_vectors = np.genfromtxt(data_vector_file)
+        
+    sim_thetas = np.vstack([sim_thetas, data_theta])
+    sim_data_vectors = np.vstack([sim_data_vectors, data_vector])
+
+    if linear is not True:
+        cov_deriv_tensor = kcap_methods.get_fiducial_cov_deriv(fiducial_run = fiducial_run, deriv_matrix = deriv_matrix, deriv_params = deriv_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    else:
+        cov_deriv_tensor = None
+
+    file_loc = compressed_file_loc + '/' + compressed_name
+
+    compressed_data = calc_score_compress(data_vector = sim_data_vectors, fid_vector = fid_vector, deriv_matrix = deriv_matrix, inv_covariance = inv_covariance, cov_deriv_tensor = cov_deriv_tensor)
+    fisher_matrix = calc_fisher(inv_covariance = inv_covariance , deriv_matrix = deriv_matrix)
+
+    write_file(input_array = sim_thetas, file_location = file_loc, file_name = 'thetas')
+    write_file(input_array = compressed_data, file_location = file_loc, file_name = 'compressed_score')
+    write_file(input_array = compressed_data[-1], file_location = file_loc, file_name = 'score_compressed_data')
+    write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
+
+def calculate_fisher(data_params, deriv_params, fiducial_mocks_dir, fiducial_mocks_name, fiducial_run, file_loc3, file_name = 'fisher_matrix', which_cov = "theory_data_covariance--covariance"):
+    inv_covariance = kcap_methods.get_inv_covariance(mock_run = fiducial_run, which_cov = which_cov, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    deriv_matrix = kcap_methods.get_fiducial_deriv(fiducial_run = fiducial_run, deriv_params = deriv_params, data_params = data_params, mocks_dir = fiducial_mocks_dir, mocks_name = fiducial_mocks_name)
+    fisher_matrix = calc_fisher(inv_covariance = inv_covariance , deriv_matrix = deriv_matrix)
+    write_file(input_array = fisher_matrix, file_location = file_loc, file_name = file_name)
 
 def cov_varied_check(deriv_params, data_params, deriv_data_params, theta_names, mocks_dir, mocks_name, sim_number, covariance_file_paths = "/share/data1/klin/kcap_out/kids_fiducial_data_mocks/varied_covariances/*", 
                      fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', fiducial_mocks_name = 'kids_1000_cosmology_fiducial', fiducial_run = 0,
@@ -205,19 +245,6 @@ def cov_varied_check(deriv_params, data_params, deriv_data_params, theta_names, 
         write_file(input_array = fisher_matrix, file_location = file_loc, file_name = 'fisher_matrix')
 
 if __name__ == "__main__":    
-
-    # calculate_fisher(data_params = ['theory_data_covariance--noiseless_theory'], 
-    #                  deriv_params = ['cosmological_parameters--sigma_8', 
-    #                                  'cosmological_parameters--omch2',
-    #                                  'intrinsic_alignment_parameters--a',
-    #                                  'cosmological_parameters--h0'], 
-    #                  fiducial_mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks', 
-    #                  fiducial_mocks_name = 'kids_1000_cosmology_fiducial', 
-    #                  fiducial_run = 0, 
-    #                  file_loc = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks/fisher_matrices',
-    #                  file_name = '4_param_fisher_omch2_h0',
-    #                  which_cov = "theory_data_covariance--covariance")
-    
     main(deriv_params = ['cosmological_parameters--sigma_8', 
                             'cosmological_parameters--omch2',
                             'intrinsic_alignment_parameters--a',
@@ -253,7 +280,7 @@ if __name__ == "__main__":
             sim_number = 2000,
             compressed_file_loc = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_45_more_sampler_testing/12_params',
             compressed_name = 'compressed')
-
+            
     # cov_varied_check(deriv_params = ['cosmological_parameters--sigma_8', 
     #                                  'cosmological_parameters--omch2',
     #                                  'intrinsic_alignment_parameters--a',
