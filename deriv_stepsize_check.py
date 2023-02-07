@@ -168,33 +168,33 @@ def get_1d_fom_vals(step_sizes, data_params, param_names, inv_covariance, mocks_
     return fom
 
 if __name__ == "__main__": 
-    # step_sizes = np.array([])
+    step_sizes = np.array([])
 
-    # for i in range(9):
-    #     step_sizes = np.append(step_sizes, f"{0.00001 * (i+1):.5f}")
-    # for i in range(9):
-    #     step_sizes = np.append(step_sizes, f"{0.0001 * (i+1):.4f}")
-    # for i in range(9):
-    #     step_sizes = np.append(step_sizes, f"{0.001 * (i+1):.3f}")
-    # for i in range(9):
-    #     step_sizes = np.append(step_sizes, f"{0.01 * (i+1):.2f}")
-    # step_sizes = np.append(step_sizes, 0.1)
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.00001 * (i+1):.5f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.0001 * (i+1):.4f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.001 * (i+1):.3f}")
+    for i in range(9):
+        step_sizes = np.append(step_sizes, f"{0.01 * (i+1):.2f}")
+    step_sizes = np.append(step_sizes, 0.1)
 
     step_sizes = np.array([0.00001, 0.0001, 0.001, 0.01, 0.1])
 
-    # run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 3, 
-    #                      mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_3pt", mocks_name = "kids_stepsize",
-    #                      deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-    #                      deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
+    run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 3, 
+                         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_3pt", mocks_name = "kids_stepsize",
+                         deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
+                         deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
     run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 5, 
                          mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_expanded", mocks_name = "kids_stepsize",
                          deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
                          deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
-    # run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 7,
-    #                      mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_7pt", mocks_name = "kids_stepsize",
-    #                      deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-    #                      deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
-    # run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 9, 
-    #                      mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_9pt", mocks_name = "kids_stepsize",
-    #                      deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
-    #                      deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
+    run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 7,
+                         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_7pt", mocks_name = "kids_stepsize",
+                         deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
+                         deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')
+    run_varying_stepsize(step_sizes = step_sizes, stencil_pts = 9, 
+                         mocks_dir = "/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/kids_deriv_stepsize_test_9pt", mocks_name = "kids_stepsize",
+                         deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_pipeline.ini', deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values.ini', 
+                         deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_cl_deriv_values_list.ini', base_folder = '/share/data1/klin/kcap_out/kids_1000_cl_deriv_tests/template')

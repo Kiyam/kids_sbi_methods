@@ -1003,7 +1003,7 @@ class kcap_delfi_proposal():
                 while p == 0:
                     x = norm(loc = 0, scale = 1).ppf(points[:,i])
                     p = self.gaussian(lower[i], upper[i], x)
-                points[:,i] = x
+                points[:, i] = x
             else:
                 val_range = upper[i] - lower[i]
                 points[:, i] *= val_range
@@ -1318,10 +1318,9 @@ def extract_and_cleanup(mock_run_start, num_mock_runs, mocks_dir = None, mocks_n
     print("Enjoy that sweet sweet disk space and your extracted files!")
     
 if __name__ == "__main__":      
-    extract_and_cleanup(mock_run_start = 0, num_mock_runs = 100, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_43_fiducial_cosmology_sensitivity',
-                        mocks_name = 'kids_1000_mocks')
-   
-    
+    # extract_and_cleanup(mock_run_start = 0, num_mock_runs = 100, mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/trial_43_fiducial_cosmology_sensitivity',
+    #                     mocks_name = 'kids_1000_mocks')
+
     # data_vectors = get_sim_batch_data_vectors(sim_number = 8000, data_params = ['theory_data_covariance--theory'], data_vector_length = 270, 
     #                                           mocks_dir = '/share/data1/klin/kcap_out/kids_1000_mocks/nz_covariance_testing', mocks_name = 'kids_1000_cosmology_with_nz_shifts_corr')
     
@@ -1345,30 +1344,109 @@ if __name__ == "__main__":
 
 # For regular deriv calcs -----------------------------------------------------------------------------------------------------
 
-    # run_kcap_deriv(mock_run = 0, 
-    #             param_to_vary = "cosmological_parameters--ombh2",
-    #             params_to_fix = ['cosmological_parameters--sigma_8',
-    #                              'intrinsic_alignment_parameters--a',
-    #                              'cosmological_parameters--n_s',
-    #                              'halo_model_parameters--a',
-    #                              'cosmological_parameters--h0',
-    #                              'cosmological_parameters--ombh2',
-    #                              'nofz_shifts--bias_1',
-    #                              'nofz_shifts--bias_2',
-    #                              'nofz_shifts--bias_3',
-    #                              'nofz_shifts--bias_4',
-    #                              'nofz_shifts--bias_5'],
-    #             vals_to_diff = ["bandpowers--theory_bandpower_cls", "bandpowers--noisey_bandpower_cls"],
-    #             step_size = 0.01,
-    #             stencil_pts = 5,
-    #             mocks_dir = '/share/data1/klin/kcap_out/kids_1000_glass_mocks/glass_fiducial_and_data',
-    #             mocks_name = 'glass_fiducial',
-    #             cleanup = 2,
-    #             deriv_ini_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_pipeline.ini', 
-    #             deriv_values_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values.ini', 
-    #             deriv_values_list_file = '/share/splinter/klin/kcap_glass/runs/lfi_config/kids_glass_deriv_values_list.ini',
-    #             sbatch_file = '/share/splinter/klin/slurm/slurm_glass_derivs.sh'
-    #             )
+    run_kcap_deriv(mock_run = 0, 
+                param_to_vary = "cosmological_parameters--omch2",
+                params_to_fix = ['cosmological_parameters--sigma_8',
+                                'intrinsic_alignment_parameters--a',
+                                'cosmological_parameters--n_s',
+                                'halo_model_parameters--a',
+                                'cosmological_parameters--h0',
+                                'cosmological_parameters--ombh2',
+                                'nofz_shifts--bias_1',
+                                'nofz_shifts--bias_2',
+                                'nofz_shifts--bias_3',
+                                'nofz_shifts--bias_4',
+                                'nofz_shifts--bias_5'],
+                vals_to_diff = ["theory_data_covariance--theory", "theory_data_covariance--noiseless_theory"],
+                step_size = 0.01,
+                stencil_pts = 5,
+                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+                mocks_name = 'trial_99_fiducial',
+                cleanup = 2,
+                deriv_dir = '/share/data1/klin/kcap_out/kids_1000_mock_derivatives',
+                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values_list.ini',
+                sbatch_file = '/share/splinter/klin/slurm/slurm_kcap_derivs.sh'
+                )
+    
+    run_kcap_deriv(mock_run = 0, 
+                param_to_vary = "cosmological_parameters--sigma_8",
+                params_to_fix = ['cosmological_parameters--omch2',
+                                'intrinsic_alignment_parameters--a',
+                                'cosmological_parameters--n_s',
+                                'halo_model_parameters--a',
+                                'cosmological_parameters--h0',
+                                'cosmological_parameters--ombh2',
+                                'nofz_shifts--bias_1',
+                                'nofz_shifts--bias_2',
+                                'nofz_shifts--bias_3',
+                                'nofz_shifts--bias_4',
+                                'nofz_shifts--bias_5'],
+                vals_to_diff = ["theory_data_covariance--theory", "theory_data_covariance--noiseless_theory"],
+                step_size = 0.01,
+                stencil_pts = 5,
+                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+                mocks_name = 'trial_99_fiducial',
+                cleanup = 2,
+                deriv_dir = '/share/data1/klin/kcap_out/kids_1000_mock_derivatives',
+                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values_list.ini',
+                sbatch_file = '/share/splinter/klin/slurm/slurm_kcap_derivs.sh'
+                )
+    
+    run_kcap_deriv(mock_run = 0, 
+                param_to_vary = "intrinsic_alignment_parameters--a",
+                params_to_fix = ['cosmological_parameters--omch2',
+                                'cosmological_parameters--sigma_8',
+                                'cosmological_parameters--n_s',
+                                'halo_model_parameters--a',
+                                'cosmological_parameters--h0',
+                                'cosmological_parameters--ombh2',
+                                'nofz_shifts--bias_1',
+                                'nofz_shifts--bias_2',
+                                'nofz_shifts--bias_3',
+                                'nofz_shifts--bias_4',
+                                'nofz_shifts--bias_5'],
+                vals_to_diff = ["theory_data_covariance--theory", "theory_data_covariance--noiseless_theory"],
+                step_size = 0.01,
+                stencil_pts = 5,
+                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+                mocks_name = 'trial_99_fiducial',
+                cleanup = 2,
+                deriv_dir = '/share/data1/klin/kcap_out/kids_1000_mock_derivatives',
+                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values_list.ini',
+                sbatch_file = '/share/splinter/klin/slurm/slurm_kcap_derivs.sh'
+                )
+    
+    run_kcap_deriv(mock_run = 0, 
+                param_to_vary = "cosmological_parameters--h0",
+                params_to_fix = ['cosmological_parameters--omch2',
+                                'cosmological_parameters--sigma_8',
+                                'cosmological_parameters--n_s',
+                                'halo_model_parameters--a',
+                                'intrinsic_alignment_parameters--a',
+                                'cosmological_parameters--ombh2',
+                                'nofz_shifts--bias_1',
+                                'nofz_shifts--bias_2',
+                                'nofz_shifts--bias_3',
+                                'nofz_shifts--bias_4',
+                                'nofz_shifts--bias_5'],
+                vals_to_diff = ["theory_data_covariance--theory", "theory_data_covariance--noiseless_theory"],
+                step_size = 0.01,
+                stencil_pts = 5,
+                mocks_dir = '/share/data1/klin/kcap_out/kids_fiducial_data_mocks',
+                mocks_name = 'trial_99_fiducial',
+                cleanup = 2,
+                deriv_dir = '/share/data1/klin/kcap_out/kids_1000_mock_derivatives',
+                deriv_ini_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_pipeline.ini', 
+                deriv_values_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values.ini', 
+                deriv_values_list_file = '/share/splinter/klin/kcap/runs/lfi_config/kids_xipm_deriv_values_list.ini',
+                sbatch_file = '/share/splinter/klin/slurm/slurm_kcap_derivs.sh'
+                )
 
     # run_omega_m_deriv(mock_run = 0, 
     #                   params_varied = ["cosmological_parameters--omch2"], 
