@@ -1,2 +1,0 @@
-nofz_shifts--bias_1_relative_stepsize=0.01
-nofz_shifts--bias_1_absolute_stepsize=0.01
