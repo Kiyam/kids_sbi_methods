@@ -609,14 +609,13 @@ class kcap_delfi():
     def save_sims(self):
         if self.save_folder:
             which_population = len(glob.glob(self.save_folder + '/*/'))
-            mocks_dir
             for mocks_file in glob.glob(self.mocks_dir+'/*.tgz'):
                 content = tarfile.open(mocks_file, 'r:gz')
                 content.extractall('/')
                 dest = self.save_folder  + '/population_' + str(which_population) + '/' + mocks_file.split('/')[-1][:-4]
                 shutil.move(mocks_file[:-4], dest)
                 make_tar(dest, cleanup = True)
-                shutil.rmtree(mocks_file)
+            shutil.rmtree(self.mocks_dir)
 
     def clean_mocks_folder(self):
         shutil.rmtree(self.mocks_dir)
@@ -633,7 +632,8 @@ class kcap_delfi():
         jobid = self.run_delfi_kcap()
         time.sleep(30)
         self.poll_cluster_finished(jobid)
-        self.save_sims()
+        
+        thetas, sim_data_vector = None, None
         
         for i in range(self.num_mock_runs):
             self.mock_run = str(i)
@@ -642,8 +642,8 @@ class kcap_delfi():
                 data_vector = content.read_vals(vals_to_read = self.data_name, output_type = 'as_flat')
                 theta = content.read_params(parameter_list = self.params_to_read, output_type = 'as_flat')
             except:
-                print("Mock run %s doesn't exist, skipping this datavector" % (i))
-                
+                print("Mock run %s doesn't exist, skipping this datavector" % (i))      
+            
             if thetas and sim_data_vector:
                 thetas = np.vstack((thetas, theta))
                 sim_data_vector = np.vstack((sim_data_vector, data_vector))
@@ -652,6 +652,8 @@ class kcap_delfi():
                 sim_data_vector = data_vector
 
         assert len(sim_data_vector) == len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
+        
+        self.save_sims()
         self.clean_mocks_folder()
 
         return sim_data_vector, thetas
