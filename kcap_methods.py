@@ -343,7 +343,7 @@ class kcap_deriv(read_kcap_values):
                 print("Simulations finished!")
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(40)
+        time.sleep(10)
 
     def fetch_dx_values(self):
         dx_list = []
@@ -591,20 +591,28 @@ class kcap_delfi():
             np.savetxt(fname = values_list_file, X = np.array([theta]), header=header)
 
         print("Succesfully set values to run simulations on")
-    
+        
     def poll_cluster_finished(self, jobid):
         start_time = time.time()
         elapsed = time.time() - start_time
         finished = False
+        num_done = 0
+        last_sim_time = time.time()
+        current_time = time.time()
         while elapsed <= 1200000. and finished != True:
             try: 
                 subprocess.check_output(["squeue", "-j", jobid])
+                if len(glob.glob(self.mocks_dir+'/*.tgz')) > num_done:
+                    num_done = len(glob.glob(self.mocks_dir+'/'+self.mocks_name+'_*.tgz'))
+                    last_sim_time = time.time()
+                if current_time - last_sim_time > 3600:
+                    subprocess.run(["scancel", jobid])
                 time.sleep(30)
             except:
                 print("Simulations finished!")
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(10)
+        time.sleep(40)
     
     def save_sims(self):
         if self.save_folder:
@@ -641,20 +649,22 @@ class kcap_delfi():
                 content = read_kcap_values(mock_run = i, mocks_dir = self.mocks_dir, mocks_name = self.mocks_name, bin_order = self.bin_order)
                 data_vector = content.read_vals(vals_to_read = self.data_name, output_type = 'as_flat')
                 theta = content.read_params(parameter_list = self.params_to_read, output_type = 'as_flat')
+                if thetas is not None and sim_data_vector is not None:
+                    thetas = np.vstack((thetas, theta))
+                    sim_data_vector = np.vstack((sim_data_vector, data_vector))
+                else:
+                    thetas = theta
+                    sim_data_vector = data_vector
             except:
                 print("Mock run %s doesn't exist, skipping this datavector" % (i))      
-            
-            if thetas and sim_data_vector:
-                thetas = np.vstack((thetas, theta))
-                sim_data_vector = np.vstack((sim_data_vector, data_vector))
-            else:
-                thetas = theta
-                sim_data_vector = data_vector
 
         assert len(sim_data_vector) == len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
         
         self.save_sims()
-        self.clean_mocks_folder()
+        try:
+            self.clean_mocks_folder()
+        except:
+            print("Mock folder not found, already cleaned up")
 
         return sim_data_vector, thetas
 
