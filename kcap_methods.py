@@ -594,18 +594,16 @@ class kcap_delfi():
         
     def poll_cluster_finished(self, jobid):
         start_time = time.time()
-        elapsed = time.time() - start_time
+        last_sim_time = time.time()
         finished = False
         num_done = 0
-        last_sim_time = time.time()
-        current_time = time.time()
-        while elapsed <= 1200000. and finished != True:
+        while time.time() - start_time <= 172800. and finished != True:
             try: 
                 subprocess.check_output(["squeue", "-j", jobid])
-                if len(glob.glob(self.mocks_dir+'/*.tgz')) > num_done:
+                if len(glob.glob(self.mocks_dir+'/'+self.mocks_name+'_*.tgz')) > num_done:
                     num_done = len(glob.glob(self.mocks_dir+'/'+self.mocks_name+'_*.tgz'))
                     last_sim_time = time.time()
-                if current_time - last_sim_time > 3600:
+                if time.time() - last_sim_time > 7200 and num_done != 0:
                     subprocess.run(["scancel", jobid])
                 time.sleep(30)
             except:
@@ -617,12 +615,15 @@ class kcap_delfi():
     def save_sims(self):
         if self.save_folder:
             which_population = len(glob.glob(self.save_folder + '/*/'))
+            os.makedirs(self.save_folder  + '/population_' + str(which_population))
             for mocks_file in glob.glob(self.mocks_dir+'/*.tgz'):
-                content = tarfile.open(mocks_file, 'r:gz')
-                content.extractall('/')
-                dest = self.save_folder  + '/population_' + str(which_population) + '/' + mocks_file.split('/')[-1][:-4]
-                shutil.move(mocks_file[:-4], dest)
-                make_tar(dest, cleanup = True)
+                # source = mocks_file
+                # dest = dest+'.tgz'
+                # content = tarfile.open(mocks_file, 'r:gz')
+                # content.extractall('/')
+                dest = self.save_folder  + '/population_' + str(which_population) + '/' + mocks_file.split('/')[-1][:-4] + '.tgz'
+                shutil.move(mocks_file, dest, copy_function = shutil.copytree)
+                # make_tar(dest, cleanup = True)
             shutil.rmtree(self.mocks_dir)
 
     def clean_mocks_folder(self):
@@ -875,6 +876,8 @@ def make_tar(mocks_path, cleanup = False):
 def move_tar(source, dest, copy = False):
     content = tarfile.open(source+'.tgz', 'r:gz')
     content.extractall('/')
+    # source = source+'.tgz'
+    # dest = dest+'.tgz'
     shutil.move(source, dest)
     make_tar(dest, cleanup = True)
     if copy == False:
