@@ -24,11 +24,11 @@ class read_kcap_values:
         self.content = self.fetch_tar_content(self.mock_run)
 
         if bin_order == None:
-            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
-                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
-                              'bin_3_3', 'bin_4_3', 'bin_5_3',
-                              'bin_4_4', 'bin_5_4',
-                              'bin_5_5']
+            self.bin_order = ['bin_1_1', 
+                              'bin_2_1', 'bin_2_2', 
+                              'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                              'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                              'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
         else:
             self.bin_order = bin_order
 
@@ -253,11 +253,11 @@ class kcap_deriv(read_kcap_values):
         self.param_dict = self.read_params(self.parameter_list)
         
         if bin_order == None:
-            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
-                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
-                              'bin_3_3', 'bin_4_3', 'bin_5_3',
-                              'bin_4_4', 'bin_5_4',
-                              'bin_5_5']
+            self.bin_order = ['bin_1_1', 
+                              'bin_2_1', 'bin_2_2', 
+                              'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                              'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                              'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
         else:
             self.bin_order = bin_order
 
@@ -525,11 +525,11 @@ class kcap_delfi():
         self.verbose = verbose
         
         if bin_order == None:
-            self.bin_order = ['bin_1_1', 'bin_2_1', 'bin_3_1', 'bin_4_1', 'bin_5_1',
-                              'bin_2_2', 'bin_3_2', 'bin_4_2', 'bin_5_2',
-                              'bin_3_3', 'bin_4_3', 'bin_5_3',
-                              'bin_4_4', 'bin_5_4',
-                              'bin_5_5']
+            self.bin_order = ['bin_1_1', 
+                              'bin_2_1', 'bin_2_2', 
+                              'bin_3_1', 'bin_3_2', 'bin_3_3', 
+                              'bin_4_1', 'bin_4_2', 'bin_4_3', 'bin_4_4', 
+                              'bin_5_1', 'bin_5_2', 'bin_5_3', 'bin_5_4', 'bin_5_5']
         else:
             self.bin_order = bin_order
         
