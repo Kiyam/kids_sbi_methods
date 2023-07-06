@@ -4,14 +4,18 @@ import glob
 from pathlib import Path
 
 class delfi_score_compress:
-    def __init__(self, theta_fiducial, fid_vector, deriv_matrix, inv_covariance, fisher_matrix, nuisance_parameter_indices = None):
+    def __init__(self, fid_vector, deriv_matrix, inv_covariance, theta_fiducial = None, fisher_matrix = None, want_mle = True, nuisance_parameter_indices = None):
         self.theta_fiducial = theta_fiducial
         self.fid_vector = fid_vector
         self.deriv_matrix = deriv_matrix
         self.inv_covariance = inv_covariance
         self.fisher_matrix = fisher_matrix
-        self.inverse_fisher = np.linalg.inv(fisher_matrix)
+        if fisher_matrix is None:
+            self.inverse_fisher = None
+        else:
+            self.inverse_fisher = np.linalg.inv(fisher_matrix)
         self.nuisance_parameter_indices = nuisance_parameter_indices
+        self.want_mle = want_mle
         
     def score_compress(self, data_vector, thetas):
         """
@@ -20,33 +24,36 @@ class delfi_score_compress:
         data_diff = data_vector - self.fid_vector  
         linear_score = np.dot(self.deriv_matrix, np.dot(self.inv_covariance, data_diff.T)).T
         
-        if self.nuisance_parameter_indices is not None:
-            if len(data_diff.shape) == 1:
-                wanted_score = linear_score[:min(self.nuisance_parameter_indices)]
-                nuisance_score = linear_score[min(self.nuisance_parameter_indices):]
-                thetas = thetas[:min(self.nuisance_parameter_indices)]
-            else:
-                wanted_score = linear_score[:,:min(self.nuisance_parameter_indices)]
-                nuisance_score = linear_score[:,min(self.nuisance_parameter_indices):]
-                thetas = thetas[:,:min(self.nuisance_parameter_indices)]
+        if self.want_mle == True:
+            if self.nuisance_parameter_indices is not None:
+                if len(data_diff.shape) == 1:
+                    wanted_score = linear_score[:min(self.nuisance_parameter_indices)]
+                    nuisance_score = linear_score[min(self.nuisance_parameter_indices):]
+                    thetas = thetas[:min(self.nuisance_parameter_indices)]
+                else:
+                    wanted_score = linear_score[:,:min(self.nuisance_parameter_indices)]
+                    nuisance_score = linear_score[:,min(self.nuisance_parameter_indices):]
+                    thetas = thetas[:,:min(self.nuisance_parameter_indices)]
+                    
+                sub_nuisance_fisher = self.fisher_matrix[np.ix_(list(range(0, min(self.nuisance_parameter_indices))), self.nuisance_parameter_indices)]
                 
-            sub_nuisance_fisher = self.fisher_matrix[np.ix_(list(range(0, min(self.nuisance_parameter_indices))), self.nuisance_parameter_indices)]
-            
-            if len(self.nuisance_parameter_indices) == 1:
-                nuisance_inv_fisher = 1/self.fisher_matrix[self.nuisance_parameter_indices[0]][self.nuisance_parameter_indices[0]]
-                marginalised_component = np.dot(sub_nuisance_fisher, (nuisance_inv_fisher * nuisance_score).T).T
+                if len(self.nuisance_parameter_indices) == 1:
+                    nuisance_inv_fisher = 1/self.fisher_matrix[self.nuisance_parameter_indices[0]][self.nuisance_parameter_indices[0]]
+                    marginalised_component = np.dot(sub_nuisance_fisher, (nuisance_inv_fisher * nuisance_score).T).T
+                else:
+                    nuisance_inv_fisher = np.linalg.inv(self.fisher_matrix[np.ix_(self.nuisance_parameter_indices, self.nuisance_parameter_indices)])
+                    marginalised_component = np.dot(sub_nuisance_fisher, np.dot(nuisance_inv_fisher, nuisance_score.T)).T
+                
+                marginalised_score = wanted_score - marginalised_component
+                marginalised_inv_fisher = np.linalg.inv(self.fisher_matrix)[:min(self.nuisance_parameter_indices), :min(self.nuisance_parameter_indices)]
+                
+                mle_fiducial = self.theta_fiducial[:min(self.nuisance_parameter_indices)] + np.dot(marginalised_inv_fisher, marginalised_score.T).T
             else:
-                nuisance_inv_fisher = np.linalg.inv(self.fisher_matrix[np.ix_(self.nuisance_parameter_indices, self.nuisance_parameter_indices)])
-                marginalised_component = np.dot(sub_nuisance_fisher, np.dot(nuisance_inv_fisher, nuisance_score.T)).T
-            
-            marginalised_score = wanted_score - marginalised_component
-            marginalised_inv_fisher = np.linalg.inv(self.fisher_matrix)[:min(self.nuisance_parameter_indices), :min(self.nuisance_parameter_indices)]
-            
-            mle_fiducial = self.theta_fiducial[:min(self.nuisance_parameter_indices)] + np.dot(marginalised_inv_fisher, marginalised_score.T).T
-        else:
-            mle_fiducial = self.theta_fiducial + np.dot(self.inverse_fisher, linear_score.T).T
+                mle_fiducial = self.theta_fiducial + np.dot(self.inverse_fisher, linear_score.T).T
 
-        return mle_fiducial, thetas
+            return mle_fiducial, thetas
+        else:
+            return linear_score, thetas
 
 def nuisance_hardened_score(fisher, score, nuisance_index = [-1]):  
     wanted_score = score[:,:min(nuisance_index)]

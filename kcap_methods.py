@@ -222,6 +222,8 @@ class kcap_deriv(read_kcap_values):
             self.mock_path = '{0}/{1}'.format(self.mocks_dir, self.mocks_name)
         else:
             self.mock_path = '{0}/{1}_{2}'.format(self.mocks_dir, self.mocks_name, self.mock_run)
+        
+        print(self.mock_path)
             
         self.content = self.fetch_tar_content(self.mock_run)
         self.stencil_pts = stencil_pts
@@ -338,7 +340,7 @@ class kcap_deriv(read_kcap_values):
         while elapsed <= 1200000. and finished != True:
             try: 
                 subprocess.check_output(["squeue", "-j", jobid])
-                time.sleep(30)
+                time.sleep(10)
             except:
                 print("Simulations finished!")
                 finished = True
@@ -605,12 +607,12 @@ class kcap_delfi():
                     last_sim_time = time.time()
                 if time.time() - last_sim_time > 7200 and num_done != 0:
                     subprocess.run(["scancel", jobid])
-                time.sleep(30)
+                time.sleep(10)
             except:
                 print("Simulations finished!")
                 finished = True
         print("Waiting to ensure all IO operations are finished")
-        time.sleep(40)
+        time.sleep(10)
     
     def save_sims(self):
         if self.save_folder:
