@@ -33,6 +33,9 @@ def resample_params(nde_samples):
     return omega_m_nde_samples
 
 def calc_pjhpd(samples, probs, n_bins = 1000):
+    """
+    Returns the sigma values in the order of -2sigma, -1sigma, +1sigma, +2sigma
+    """
     num_params = len(samples[0])
     probs_sorted = probs.argsort()
     sorted_samples = samples[probs_sorted[::-1]]
