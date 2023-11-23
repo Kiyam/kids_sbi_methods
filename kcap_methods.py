@@ -605,7 +605,7 @@ class kcap_delfi():
                 if len(glob.glob(self.mocks_dir+'/'+self.mocks_name+'_*.tgz')) > num_done:
                     num_done = len(glob.glob(self.mocks_dir+'/'+self.mocks_name+'_*.tgz'))
                     last_sim_time = time.time()
-                if time.time() - last_sim_time > 7200 and num_done != 0:
+                if time.time() - last_sim_time > 2400 and num_done != 0:
                     subprocess.run(["scancel", jobid])
                 time.sleep(10)
             except:
@@ -614,18 +614,15 @@ class kcap_delfi():
         print("Waiting to ensure all IO operations are finished")
         time.sleep(10)
     
-    def save_sims(self):
+    def save_sims(self, sim_data_vector, thetas):
         if self.save_folder:
             which_population = len(glob.glob(self.save_folder + '/*/'))
             os.makedirs(self.save_folder  + '/population_' + str(which_population))
+            np.savetxt(self.save_folder  + '/data_population_' + str(which_population) + '.txt', sim_data_vector)
+            np.savetxt(self.save_folder  + '/thetas_population_' + str(which_population) + '.txt', thetas)
             for mocks_file in glob.glob(self.mocks_dir+'/*.tgz'):
-                # source = mocks_file
-                # dest = dest+'.tgz'
-                # content = tarfile.open(mocks_file, 'r:gz')
-                # content.extractall('/')
                 dest = self.save_folder  + '/population_' + str(which_population) + '/' + mocks_file.split('/')[-1][:-4] + '.tgz'
                 shutil.move(mocks_file, dest, copy_function = shutil.copytree)
-                # make_tar(dest, cleanup = True)
             shutil.rmtree(self.mocks_dir)
 
     def clean_mocks_folder(self):
@@ -663,14 +660,14 @@ class kcap_delfi():
 
         assert len(sim_data_vector) == len(thetas), "Mismatch between number of fetched simulation data vectors: %s and parameter sets: %s" %(len(sim_data_vector), len(thetas))
         
-        self.save_sims()
+        self.save_sims(sim_data_vector, thetas)
         try:
             self.clean_mocks_folder()
         except:
             print("Mock folder not found, already cleaned up")
 
         return sim_data_vector, thetas
-
+    
 class kcap_delfi_proposal():
     def __init__(self, n_initial, lower, upper, transformation = None, delta_z_indices = None, delta_z_cov = None, factor_of_safety = 5, iterations = 1000):
         # The lower and upper bounds for this are for a truncated Gaussian, so it should be different to the PyDELFI prior

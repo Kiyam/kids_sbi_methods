@@ -127,3 +127,44 @@ def compressed_summary_plot_small(compressed_data, thetas, theta_names, theta_in
         fig.savefig(save_file)
     
     plt.show()
+    
+def plot_2d_mesh(x, y, z, fiducial_values = None, x_label = 'x', y_label = 'y', z_label = 'z', title = 'meshgrid plot', save_file = None):
+    fig = plt.figure(figsize = (12, 10))
+    fig.suptitle(title, fontsize = 40)
+    ax = fig.add_subplot(111)
+    ax.set_xlabel(x_label, fontsize = 44)
+    ax.set_ylabel(y_label, fontsize = 44)
+    # pc = ax.pcolormesh(x, y, z, shading = "nearest", vmin=-20, vmax = 20, cmap = "PuOr")
+    # pc = ax.pcolormesh(x, y, z, shading = "nearest", cmap = "PuOr")
+    pc = ax.pcolormesh(x, y, z, shading = "nearest", cmap = "Purples")
+    ax.tick_params(axis='both', which='major', labelsize=25)
+    cb = fig.colorbar(pc, ax = ax)
+    cb.ax.tick_params(labelsize=25)
+    cb.ax.set_yticklabels([str(i)[:-2] for i in cb.get_ticks()]) 
+    
+    try:
+        ax.axvline(x=fiducial_values[0], linestyle = '--', color = 'black')
+        ax.axhline(y=fiducial_values[1], linestyle = '--', color = 'black')
+    except:
+        print("Skipping fiducial lines as they have not been set")
+    
+    # omega_m_grid = np.linspace(0.225, 0.5, 100)
+    
+    # iso_sigma_8_vals_1 = (0.49 * (0.3 * 0.674**2)**0.5)/omega_m_grid
+    # iso_sigma_8_vals_2 = (0.66 * (0.3 * 0.674**2)**0.5)/omega_m_grid
+    # iso_sigma_8_vals_3 = (0.83 * (0.3 * 0.674**2)**0.5)/omega_m_grid
+    # iso_sigma_8_vals_4 = (1. * (0.3 * 0.674**2)**0.5)/omega_m_grid
+    
+    # ax.plot(iso_sigma_8_vals_1, omega_m_grid, linestyle = ':', color = 'grey')
+    # ax.plot(iso_sigma_8_vals_2, omega_m_grid, linestyle = ':', color = 'grey')
+    # ax.plot(iso_sigma_8_vals_3, omega_m_grid, linestyle = ':', color = 'grey')
+    # ax.plot(iso_sigma_8_vals_4, omega_m_grid, linestyle = ':', color = 'grey')
+    
+    ax.set_xlim(min(x), max(x))
+    ax.set_ylim(min(y), max(y))
+    
+    plt.tight_layout(pad = 2.0)
+    if save_file is not None:
+        fig.savefig(save_file)
+    
+    plt.show()
