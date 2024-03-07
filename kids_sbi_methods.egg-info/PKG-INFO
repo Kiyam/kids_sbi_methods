@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: kids-sbi-methods
+Version: 1.0.0
+Summary: Helper package to interface PyDELFI with the Kids SBI simulation pipeline
+Home-page: https://github.com/Kiyam/kids_sbi_methods
+Author: Kiyam Lin
+Author-email: linkiyam@gmail.com
+License: BSD 2-clause
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.9

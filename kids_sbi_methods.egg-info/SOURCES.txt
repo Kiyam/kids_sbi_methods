@@ -1,0 +1,16 @@
+setup.py
+kids_sbi_methods/bandpower_methods.py
+kids_sbi_methods/covariance_modifier.py
+kids_sbi_methods/deriv_stepsize_check.py
+kids_sbi_methods/fisher_methods.py
+kids_sbi_methods/kcap_methods.py
+kids_sbi_methods/pjhpd.py
+kids_sbi_methods/plotting.py
+kids_sbi_methods/sample_ndes.py
+kids_sbi_methods/score_compression.py
+kids_sbi_methods/sub_sample.py
+kids_sbi_methods.egg-info/PKG-INFO
+kids_sbi_methods.egg-info/SOURCES.txt
+kids_sbi_methods.egg-info/dependency_links.txt
+kids_sbi_methods.egg-info/requires.txt
+kids_sbi_methods.egg-info/top_level.txt
