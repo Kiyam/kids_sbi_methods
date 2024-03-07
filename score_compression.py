@@ -4,16 +4,13 @@ import glob
 from pathlib import Path
 
 class delfi_score_compress:
-    def __init__(self, fid_vector, deriv_matrix, inv_covariance, theta_fiducial = None, fisher_matrix = None, want_mle = True, nuisance_parameter_indices = None):
+    def __init__(self, fid_vector, deriv_matrix, inv_covariance, theta_fiducial = None, want_mle = True, nuisance_parameter_indices = None):
         self.theta_fiducial = theta_fiducial
         self.fid_vector = fid_vector
         self.deriv_matrix = deriv_matrix
         self.inv_covariance = inv_covariance
-        self.fisher_matrix = fisher_matrix
-        if fisher_matrix is None:
-            self.inverse_fisher = None
-        else:
-            self.inverse_fisher = np.linalg.inv(fisher_matrix)
+        self.fisher_matrix = np.dot(deriv_matrix, np.dot(inv_covariance, deriv_matrix.T))
+        self.inverse_fisher = np.linalg.inv(self.fisher_matrix)
         self.nuisance_parameter_indices = nuisance_parameter_indices
         self.want_mle = want_mle
         

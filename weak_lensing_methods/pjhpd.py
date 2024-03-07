@@ -18,13 +18,18 @@ def find_marginal_mass(samples, probs, bin_edges):
 
 def find_sigma(samples, probs, bin_edges, alpha):
     for i in range(len(samples)):
-        if i < 100:
+        if i < 2:
             pass
         else:
             temp_samples = samples[:i+1]
             probability = find_marginal_mass(temp_samples, probs, bin_edges)
             if probability >= alpha:
-                return temp_samples.min(), temp_samples.max()
+                sorted_samples = np.sort(temp_samples)
+                smallest = sorted_samples[0]
+                biggest = sorted_samples[-1]
+                second_smallest = sorted_samples[1]
+                second_biggest = sorted_samples[-2]
+                return (smallest+second_smallest)/2, (second_biggest+biggest)/2
     
 def resample_params(nde_samples):
     omega_m_nde_samples = np.copy(nde_samples)

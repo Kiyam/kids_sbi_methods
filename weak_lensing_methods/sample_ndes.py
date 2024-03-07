@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as mpcm
+from nautilus import Sampler, Prior
 # import os
 from pathlib import Path
 # import errno
@@ -53,6 +54,72 @@ def sample_single_NDEs(param_names, param_labels, n_ndes, DelfiEnsemble, results
                                        label = 'NDE_%s:'%i + ' with stacking weight of: ' + str(np.round_(DelfiEnsemble.stacking_weights[i], 3)))
         
         nde_mc_samples.saveAsText(root = results_directory + "/saved_samples/NDE_samples_"+str(i))
+        samples_for_plot.append(nde_mc_samples)
+        print("Finished sampling from NDE %s" % i)
+    
+    return nde_posterior_samples, samples_for_plot
+
+def sample_single_NDEs_nautilus(param_names, param_labels, n_ndes, DelfiEnsemble, results_directory, save_single_NDEs = False):
+    nde_posterior_samples = []
+    samples_for_plot = []
+    Path(results_directory + '/nautilus_saved_samples').mkdir(parents=True, exist_ok=True)
+    param_priors = {}
+    for i, name in enumerate(param_names):
+        param_priors[name] = (DelfiEnsemble.prior.lower[i], DelfiEnsemble.prior.upper[i])
+        
+    for i in range (n_ndes+1):  # +1 to also include the stacked posterior
+        nautilus_prior = Prior()
+        for j, name in enumerate(param_names):
+            nautilus_prior.add_parameter(name, dist=(DelfiEnsemble.prior.lower[j], DelfiEnsemble.prior.upper[j]))
+        if int(tf.__version__[0]) < 2:
+            if i<n_ndes:
+                log_like = lambda param_dict:DelfiEnsemble.log_likelihood_individual(i,np.array([param_dict[name] for name in param_names]),DelfiEnsemble.data)[0][0]
+                sampler = Sampler(nautilus_prior, log_like, n_live=5000)
+                sampler.run(verbose=True)
+                posterior_samples, weights, _ = sampler.posterior()
+            else:              #stacked posterior
+                log_like = lambda param_dict:DelfiEnsemble.log_likelihood_stacked(np.array([param_dict[name] for name in param_names]),DelfiEnsemble.data)[0][0]
+                sampler = Sampler(nautilus_prior, log_like, n_live=5000)
+                sampler.run(verbose=True)
+                posterior_samples, weights, _ = sampler.posterior()
+        else:
+            if i<n_ndes:
+                log_like = lambda param_dict:DelfiEnsemble.weighted_log_likelihood_individual(np.array([param_dict[name] for name in param_names]), single_NDE=i)[0][0]
+                sampler = Sampler(nautilus_prior, log_like, n_live=5000)
+                sampler.run(verbose=True)
+                posterior_samples, weights, _ = sampler.posterior()
+            else:              #stacked posterior
+                log_like = lambda param_dict:DelfiEnsemble.log_likelihood_stacked(np.array([param_dict[name] for name in param_names]))[0][0]
+                sampler = Sampler(nautilus_prior, log_like, n_live=5000)
+                sampler.run(verbose=True)
+                posterior_samples, weights, _ = sampler.posterior()
+
+        nde_posterior_samples.append(posterior_samples)
+
+        if save_single_NDEs == True:
+            if i<n_ndes:
+                np.savetxt(results_directory + '/nautilus_saved_samples/final_posterior_samples_NDE_{}.txt'.format(i), posterior_samples)
+            else:
+                np.savetxt(results_directory + '/nautilus_saved_samples/final_posterior_samples.txt', posterior_samples)
+        
+        if i == n_ndes:
+            nde_mc_samples = MCSamples(samples = posterior_samples,
+                                       weights = np.exp(weights),
+                                       names = param_names, 
+                                       labels = param_labels, 
+                                       ranges = param_priors,
+                                       label = 'NDEs',
+                                       sampler = 'nested')
+        else:
+            nde_mc_samples = MCSamples(samples = posterior_samples,
+                                       weights = np.exp(weights),
+                                       names = param_names, 
+                                       labels = param_labels, 
+                                       ranges = param_priors,
+                                       label = 'NDE_%s:'%i + ' with stacking weight of: ' + str(np.round_(DelfiEnsemble.stacking_weights[i], 3)),
+                                       sampler = 'nested')
+        
+        nde_mc_samples.saveAsText(root = results_directory + "/nautilus_saved_samples/NDE_samples_"+str(i))
         samples_for_plot.append(nde_mc_samples)
         print("Finished sampling from NDE %s" % i)
     

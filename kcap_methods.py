@@ -337,7 +337,7 @@ class kcap_deriv(read_kcap_values):
         start_time = time.time()
         elapsed = time.time() - start_time
         finished = False
-        while elapsed <= 1200000. and finished != True:
+        while elapsed <= 172800. and finished != True:
             try: 
                 subprocess.check_output(["squeue", "-j", jobid])
                 time.sleep(10)
@@ -844,12 +844,13 @@ def get_sim_batch_data_params(sim_number, param_names, data_names, mocks_dir = N
     for i in range(sim_number):
         try:
             content = read_kcap_values(mock_run = i, mocks_dir = mocks_dir, mocks_name = mocks_name, bin_order = bin_order) 
-            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_flat', truncate = truncate)
+            data_vector = content.read_vals(vals_to_read = data_names, output_type = 'as_dict', truncate = truncate)
             param_vector = content.read_params(parameter_list = param_names, output_type = 'as_flat')
             content.close()
             try:
-                sim_data_vector = np.vstack((sim_data_vector, data_vector))
                 sim_param_vector = np.vstack((sim_param_vector, param_vector))
+                for data_name in data_names:
+                    sim_data_vector[data_name] = np.vstack((sim_data_vector[data_name], data_vector[data_name]))
             except:
                 sim_data_vector = data_vector
                 sim_param_vector = param_vector
