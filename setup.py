@@ -13,7 +13,6 @@ setup(
         "matplotlib",
         "numpy",
         "scipy",
-        "tensorflow==1.15",
         "pathlib",
         "configparser",
         "pyDOE",
