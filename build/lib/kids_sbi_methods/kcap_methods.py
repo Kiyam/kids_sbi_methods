@@ -296,7 +296,7 @@ class kcap_deriv(read_kcap_values):
 
         print(self.mock_path)
 
-        self.content = self.fetch_tar_content(self.mock_run)
+        self.content = self.fetch_tar_content()
         self.stencil_pts = stencil_pts
         self.step_size = step_size
 
