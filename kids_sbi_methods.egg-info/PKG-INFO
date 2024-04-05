@@ -1,5 +1,5 @@
 Metadata-Version: 2.1
-Name: kids-sbi-methods
+Name: kids_sbi_methods
 Version: 1.0.0
 Summary: Helper package to interface PyDELFI with the Kids SBI simulation pipeline
 Home-page: https://github.com/Kiyam/kids_sbi_methods
@@ -13,3 +13,9 @@ Classifier: Operating System :: POSIX :: Linux
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3.6
 Classifier: Programming Language :: Python :: 3.9
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pathlib
+Requires-Dist: configparser
+Requires-Dist: pyDOE
